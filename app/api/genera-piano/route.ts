@@ -16,6 +16,19 @@ import {
   PatternTemporale,
   PreferenzaRilevata,
 } from "@/types/genera-piano";
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand,
+} from "@aws-sdk/client-bedrock-runtime";
+
+// Configurazione client AWS Bedrock
+const bedrockClient = new BedrockRuntimeClient({
+  region: "eu-central-1",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
 // FASE 2: Funzioni di Analisi Storica con Drizzle
 
@@ -324,6 +337,227 @@ async function eseguiAnalisiStorica(
   }
 }
 
+// FASE 3: Retrieval Ibrido
+
+// 1. Funzione per generare embedding della query
+async function generaEmbeddingQuery(
+  preferenze: string[],
+  esclusioni: string[]
+): Promise<number[]> {
+  // Prompt base personalizzato
+  let queryText = "Crea piano alimentare bilanciato basato sulle mie abitudini";
+
+  if (preferenze.length > 0) {
+    queryText += `. Preferenze: ${preferenze.join(", ")}`;
+  }
+
+  if (esclusioni.length > 0) {
+    queryText += `. Escludere: ${esclusioni.join(", ")}`;
+  }
+
+  try {
+    const command = new InvokeModelCommand({
+      modelId: "amazon.titan-embed-text-v2:0",
+      body: JSON.stringify({
+        inputText: queryText,
+      }),
+    });
+
+    const response = await bedrockClient.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+    return responseBody.embedding;
+  } catch (error) {
+    console.error("Errore nella generazione embedding:", error);
+    // Fallback: restituisce un array vuoto o di default
+    return new Array(1024).fill(0);
+  }
+}
+
+// 2. Retrieval per frequenza (Top 8 pasti storici)
+async function getTopPastiFrequenza(periodoIntervallo: number): Promise<
+  Array<{
+    id: number;
+    descrizione: string;
+    tipo_pasto: string;
+    frequenza: number;
+    score_frequenza: number;
+  }>
+> {
+  const pianiRecentiIds = await getPianiRecentiIds(periodoIntervallo);
+
+  if (pianiRecentiIds.length === 0) {
+    return [];
+  }
+
+  const result = await db
+    .select({
+      id: pasti.id,
+      descrizione: pasti.descrizioneDettagliata,
+      tipo_pasto: pasti.tipoPasto,
+      frequenza: count(),
+    })
+    .from(pianiPasti)
+    .innerJoin(pasti, eq(pianiPasti.pastoId, pasti.id))
+    .where(inArray(pianiPasti.pianoId, pianiRecentiIds))
+    .groupBy(pasti.id, pasti.descrizioneDettagliata, pasti.tipoPasto)
+    .orderBy(desc(count()))
+    .limit(8);
+
+  // Calcola score di frequenza normalizzato (0-1)
+  const maxFreq = Math.max(...result.map((r) => Number(r.frequenza)));
+
+  return result.map((row) => ({
+    id: row.id,
+    descrizione: row.descrizione,
+    tipo_pasto: row.tipo_pasto,
+    frequenza: Number(row.frequenza),
+    score_frequenza: maxFreq > 0 ? Number(row.frequenza) / maxFreq : 0,
+  }));
+}
+
+// 3. Retrieval vettoriale (Top 8 pasti simili)
+async function getTopPastiSimilarita(embedding: number[]): Promise<
+  Array<{
+    id: number;
+    descrizione: string;
+    tipo_pasto: string;
+    similarita: number;
+    score_similarita: number;
+  }>
+> {
+  try {
+    // Query con operatore pgvector <=> per cosine distance
+    const result = await db
+      .select({
+        id: pasti.id,
+        descrizione: pasti.descrizioneDettagliata,
+        tipo_pasto: pasti.tipoPasto,
+        similarita: sql<number>`1 - (${pasti.embedding} <=> ${JSON.stringify(
+          embedding
+        )}::vector)`,
+      })
+      .from(pasti)
+      .where(sql`${pasti.embedding} IS NOT NULL`)
+      .orderBy(sql`${pasti.embedding} <=> ${JSON.stringify(embedding)}::vector`)
+      .limit(8);
+
+    // Calcola score di similarità normalizzato (0-1)
+    const maxSim = Math.max(...result.map((r) => Number(r.similarita)));
+
+    return result.map((row) => ({
+      id: row.id,
+      descrizione: row.descrizione,
+      tipo_pasto: row.tipo_pasto,
+      similarita: Number(row.similarita),
+      score_similarita: maxSim > 0 ? Number(row.similarita) / maxSim : 0,
+    }));
+  } catch (error) {
+    console.error("Errore nella ricerca vettoriale:", error);
+    return [];
+  }
+}
+
+// 4. Combinazione risultati con score ibrido
+async function getRetrievalIbrido(
+  preferenze: string[],
+  esclusioni: string[],
+  periodoIntervallo: number
+): Promise<
+  Array<{
+    id: number;
+    descrizione: string;
+    tipo_pasto: string;
+    score_finale: number;
+    dettagli: {
+      frequenza?: number;
+      score_frequenza: number;
+      similarita?: number;
+      score_similarita: number;
+      fonte: "frequenza" | "similarita" | "entrambi";
+    };
+  }>
+> {
+  console.log("Inizio retrieval ibrido...");
+
+  // Step 1: Genera embedding della query
+  const embedding = await generaEmbeddingQuery(preferenze, esclusioni);
+
+  // Step 2: Retrieval per frequenza
+  const pastiFrequenza = await getTopPastiFrequenza(periodoIntervallo);
+
+  // Step 3: Retrieval vettoriale
+  const pastiSimilarita = await getTopPastiSimilarita(embedding);
+
+  // Step 4: Combinazione con pesi (0.7 frequenza + 0.3 similarità)
+  const PESO_FREQUENZA = 0.7;
+  const PESO_SIMILARITA = 0.3;
+
+  // Mappa per combinare i risultati
+  const pastiCombinati = new Map<number, any>();
+
+  // Aggiungi pasti da frequenza
+  pastiFrequenza.forEach((pasto) => {
+    pastiCombinati.set(pasto.id, {
+      id: pasto.id,
+      descrizione: pasto.descrizione,
+      tipo_pasto: pasto.tipo_pasto,
+      score_frequenza: pasto.score_frequenza,
+      score_similarita: 0,
+      frequenza: pasto.frequenza,
+      fonte: "frequenza",
+    });
+  });
+
+  // Aggiungi/combina pasti da similarità
+  pastiSimilarita.forEach((pasto) => {
+    if (pastiCombinati.has(pasto.id)) {
+      // Pasto presente in entrambi - aggiorna
+      const esistente = pastiCombinati.get(pasto.id);
+      esistente.score_similarita = pasto.score_similarita;
+      esistente.similarita = pasto.similarita;
+      esistente.fonte = "entrambi";
+    } else {
+      // Nuovo pasto solo da similarità
+      pastiCombinati.set(pasto.id, {
+        id: pasto.id,
+        descrizione: pasto.descrizione,
+        tipo_pasto: pasto.tipo_pasto,
+        score_frequenza: 0,
+        score_similarita: pasto.score_similarita,
+        similarita: pasto.similarita,
+        fonte: "similarita",
+      });
+    }
+  });
+
+  // Calcola score finale e ordina
+  const risultatiFinali = Array.from(pastiCombinati.values()).map((pasto) => ({
+    id: pasto.id,
+    descrizione: pasto.descrizione,
+    tipo_pasto: pasto.tipo_pasto,
+    score_finale:
+      pasto.score_frequenza * PESO_FREQUENZA +
+      pasto.score_similarita * PESO_SIMILARITA,
+    dettagli: {
+      frequenza: pasto.frequenza,
+      score_frequenza: pasto.score_frequenza,
+      similarita: pasto.similarita,
+      score_similarita: pasto.score_similarita,
+      fonte: pasto.fonte,
+    },
+  }));
+
+  // Ordina per score finale decrescente
+  risultatiFinali.sort((a, b) => b.score_finale - a.score_finale);
+
+  console.log(
+    `Retrieval ibrido completato: ${risultatiFinali.length} pasti trovati`
+  );
+
+  return risultatiFinali;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Parsing del body della richiesta
@@ -348,23 +582,31 @@ export async function POST(request: NextRequest) {
     // FASE 2: Esecuzione analisi storica
     console.log("Inizio analisi storica...");
     const analisiStorica = await eseguiAnalisiStorica(periodo_giorni);
-    console.log("Analisi storica completata:", analisiStorica);
+    console.log("Analisi storica completata");
 
-    // Risposta con analisi storica inclusa
+    // FASE 3: Retrieval Ibrido
+    console.log("Inizio retrieval ibrido...");
+    const pastiRaccomandati = await getRetrievalIbrido(
+      preferenze,
+      esclusioni,
+      periodo_giorni
+    );
+    console.log("Retrieval ibrido completato");
+
+    // Risposta con analisi storica e pasti raccomandati inclusi
+    // Risposta con analisi storica e pasti raccomandati inclusi
     return NextResponse.json({
       success: true,
-      message: "Analisi storica completata con successo!",
-      parametri: {
-        periodo_giorni,
-        preferenze,
-        esclusioni,
-      },
+      message: "Analisi storica e retrieval ibrido completati con successo!",
+      parametri: { periodo_giorni, preferenze, esclusioni },
       analisi_storica: analisiStorica,
+      pasti_raccomandati: pastiRaccomandati,
       piano: {
         id: Math.random().toString(36).substr(2, 9),
         creato_il: new Date().toISOString(),
         giorni_totali: periodo_giorni,
         pasti_pianificati: periodo_giorni * 3, // colazione, pranzo, cena
+        metodo_retrieval: "ibrido_frequenza_similarita",
       },
     });
   } catch (error) {

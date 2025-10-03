@@ -5,11 +5,11 @@ export default defineConfig({
   out: "./db/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    host: "cfood-knowledge-base.cluster-cle48ksqibxw.eu-central-1.rds.amazonaws.com",
+    host: process.env.AWS_AURORA_ENDPOINT!,
     port: 5432,
-    user: "cfood_admin",
-    password: "3X1%b6Wy4DPsaj^2",
-    database: "cfood_knowledge_base",
+    user: process.env.AWS_AURORA_USERNAME!,
+    password: process.env.AWS_AURORA_PASSWORD!,
+    database: process.env.AWS_AURORA_DB_NAME!,
     ssl: {
       rejectUnauthorized: false,
     },
