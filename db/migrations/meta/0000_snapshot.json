@@ -1,0 +1,295 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "prevId": "",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.piani_alimentari": {
+      "name": "piani_alimentari",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nome": {
+          "name": "nome",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descrizione": {
+          "name": "descrizione",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data_creazione": {
+          "name": "data_creazione",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "CURRENT_DATE"
+        },
+        "data_ultima_modifica": {
+          "name": "data_ultima_modifica",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "CURRENT_DATE"
+        },
+        "autore": {
+          "name": "autore",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Sconosciuto'"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false
+    },
+    "public.dettagli_nutrizionali_giornalieri": {
+      "name": "dettagli_nutrizionali_giornalieri",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "piano_id": {
+          "name": "piano_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "giorno_settimana": {
+          "name": "giorno_settimana",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proteine_totali_g": {
+          "name": "proteine_totali_g",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "carboidrati_totali_g": {
+          "name": "carboidrati_totali_g",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grassi_totali_g": {
+          "name": "grassi_totali_g",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calorie_totali_kcal": {
+          "name": "calorie_totali_kcal",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "dettagli_nutrizionali_giornalieri_piano_id_fkey": {
+          "name": "dettagli_nutrizionali_giornalieri_piano_id_fkey",
+          "tableFrom": "dettagli_nutrizionali_giornalieri",
+          "tableTo": "piani_alimentari",
+          "schemaTo": "public",
+          "columnsFrom": [
+            "piano_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "dettagli_nutrizionali_giornalieri_piano_id_giorno_settimana_key": {
+          "columns": [
+            "piano_id",
+            "giorno_settimana"
+          ],
+          "nullsNotDistinct": false,
+          "name": "dettagli_nutrizionali_giornalieri_piano_id_giorno_settimana_key"
+        }
+      },
+      "checkConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false
+    },
+    "public.pasti": {
+      "name": "pasti",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tipo_pasto": {
+          "name": "tipo_pasto",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descrizione_dettagliata": {
+          "name": "descrizione_dettagliata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note_aggiuntive": {
+          "name": "note_aggiuntive",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "calorie_stimate": {
+          "name": "calorie_stimate",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proteine_g": {
+          "name": "proteine_g",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "carboidrati_g": {
+          "name": "carboidrati_g",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grassi_g": {
+          "name": "grassi_g",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "embedding": {
+          "name": "embedding",
+          "type": "vector(1024)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false
+    },
+    "public.piani_pasti": {
+      "name": "piani_pasti",
+      "schema": "",
+      "columns": {
+        "piano_id": {
+          "name": "piano_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pasto_id": {
+          "name": "pasto_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "giorno_settimana": {
+          "name": "giorno_settimana",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ordine_nel_giorno": {
+          "name": "ordine_nel_giorno",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "piani_pasti_piano_id_fkey": {
+          "name": "piani_pasti_piano_id_fkey",
+          "tableFrom": "piani_pasti",
+          "tableTo": "piani_alimentari",
+          "schemaTo": "public",
+          "columnsFrom": [
+            "piano_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "piani_pasti_pasto_id_fkey": {
+          "name": "piani_pasti_pasto_id_fkey",
+          "tableFrom": "piani_pasti",
+          "tableTo": "pasti",
+          "schemaTo": "public",
+          "columnsFrom": [
+            "pasto_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "piani_pasti_pkey": {
+          "name": "piani_pasti_pkey",
+          "columns": [
+            "piano_id",
+            "pasto_id",
+            "giorno_settimana"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {}
+  }
+}
