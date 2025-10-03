@@ -21,9 +21,37 @@ import {
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
 
+// ================================
+// CONFIGURAZIONE E COSTANTI
+// ================================
+
+// Configurazione pipeline
+const CONFIG = {
+  // Limiti e pesi del sistema
+  MAX_TOKEN_CONTESTO_RAG: 4000,
+  PESO_FREQUENZA_RETRIEVAL: 0.7,
+  PESO_SIMILARITA_RETRIEVAL: 0.3,
+
+  // Limiti query database
+  LIMITE_TOP_PASTI: 10,
+  LIMITE_TOP_PASTI_RETRIEVAL: 8,
+
+  // Parametri LLM
+  MAX_TOKENS_OUTPUT: 8000,
+  TEMPERATURE_LLM: 0.7,
+  TOP_P_LLM: 0.9,
+
+  // Parametri validazione
+  GIORNI_PIANO_RICHIESTI: 7,
+  PASTI_PER_GIORNO: 3,
+
+  // Stima token (approssimativa: 1 token ≈ 4 caratteri)
+  CARATTERI_PER_TOKEN: 4,
+} as const;
+
 // Configurazione client AWS Bedrock
 const bedrockClient = new BedrockRuntimeClient({
-  region: "eu-central-1",
+  region: process.env.AWS_REGION || "eu-central-1",
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -174,7 +202,7 @@ async function getTopPasti(periodoIntervallo: number): Promise<TopPasto[]> {
     .where(inArray(pianiPasti.pianoId, pianiRecentiIds))
     .groupBy(pasti.id, pasti.descrizioneDettagliata, pasti.tipoPasto)
     .orderBy(desc(count()))
-    .limit(10);
+    .limit(CONFIG.LIMITE_TOP_PASTI);
 
   return result.map((row) => ({
     pasto_id: row.pastoId.toString(),
@@ -255,7 +283,7 @@ async function getPreferenzeRilevate(
     .where(inArray(pianiPasti.pianoId, pianiRecentiIds))
     .groupBy(pasti.descrizioneDettagliata)
     .orderBy(desc(count()))
-    .limit(10);
+    .limit(CONFIG.LIMITE_TOP_PASTI);
 
   // Categorizzazione semplificata client-side
   return result
@@ -489,9 +517,9 @@ async function getRetrievalIbrido(
   // Step 3: Retrieval vettoriale
   const pastiSimilarita = await getTopPastiSimilarita(embedding);
 
-  // Step 4: Combinazione con pesi (0.7 frequenza + 0.3 similarità)
-  const PESO_FREQUENZA = 0.7;
-  const PESO_SIMILARITA = 0.3;
+  // Step 4: Combinazione con pesi (70% frequenza + 30% similarità)
+  const PESO_FREQUENZA = CONFIG.PESO_FREQUENZA_RETRIEVAL;
+  const PESO_SIMILARITA = CONFIG.PESO_SIMILARITA_RETRIEVAL;
 
   // Mappa per combinare i risultati
   const pastiCombinati = new Map<number, any>();
@@ -989,9 +1017,9 @@ async function generaPianoConBedrock(
       modelId: modelIdToUse,
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 80000,
-        temperature: 0.7,
-        top_p: 0.9,
+        max_tokens: CONFIG.MAX_TOKENS_OUTPUT,
+        temperature: CONFIG.TEMPERATURE_LLM,
+        top_p: CONFIG.TOP_P_LLM,
         messages: [
           {
             role: "user",
