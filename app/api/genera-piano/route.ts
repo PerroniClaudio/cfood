@@ -6,7 +6,7 @@ import {
   pianiPasti,
   dettagliNutrizionaliGiornalieri,
 } from "@/db/schema";
-import { sql, gte, desc, count, avg, eq, inArray, max } from "drizzle-orm";
+import { sql, gte, desc, count, avg, eq, inArray } from "drizzle-orm";
 import {
   GeneraPianoRequest,
   AnalisiStorica,
@@ -20,6 +20,7 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
+import { buildPromptPianoAlimentare } from "@/prompts";
 
 // ================================
 // CONFIGURAZIONE E COSTANTI
@@ -522,7 +523,19 @@ async function getRetrievalIbrido(
   const PESO_SIMILARITA = CONFIG.PESO_SIMILARITA_RETRIEVAL;
 
   // Mappa per combinare i risultati
-  const pastiCombinati = new Map<number, any>();
+  const pastiCombinati = new Map<
+    number,
+    {
+      id: number;
+      descrizione: string;
+      tipo_pasto: string;
+      score_frequenza: number;
+      score_similarita: number;
+      frequenza?: number;
+      similarita?: number;
+      fonte: "frequenza" | "similarita" | "entrambi";
+    }
+  >();
 
   // Aggiungi pasti da frequenza
   pastiFrequenza.forEach((pasto) => {
@@ -542,9 +555,11 @@ async function getRetrievalIbrido(
     if (pastiCombinati.has(pasto.id)) {
       // Pasto presente in entrambi - aggiorna
       const esistente = pastiCombinati.get(pasto.id);
-      esistente.score_similarita = pasto.score_similarita;
-      esistente.similarita = pasto.similarita;
-      esistente.fonte = "entrambi";
+      if (esistente) {
+        esistente.score_similarita = pasto.score_similarita;
+        esistente.similarita = pasto.similarita;
+        esistente.fonte = "entrambi";
+      }
     } else {
       // Nuovo pasto solo da similarità
       pastiCombinati.set(pasto.id, {
@@ -876,104 +891,8 @@ function costruisciPromptPianoAlimentare(
   preferenze: string[],
   esclusioni: string[]
 ): string {
-  const dataInizio = new Date();
-  const dataInizioFormatted = dataInizio.toISOString().split("T")[0];
-
-  return `Sei un nutrizionista esperto specializzato nella creazione di piani alimentari personalizzati basati su analisi storiche.
-
-🎯 OBIETTIVO: Crea un piano alimentare di 7 giorni bilanciato e personalizzato.
-
-📋 ISTRUZIONI PRECISE:
-1. USA ESCLUSIVAMENTE le informazioni del contesto storico fornito per basare le tue scelte
-2. MANTIENI i pattern storici rilevati (variazioni settimanali, preferenze alimentari)
-3. RISPETTA le medie nutrizionali del periodo storico analizzato
-4. SEGUI preferenze utente: ${
-    preferenze.length > 0
-      ? preferenze.join(", ")
-      : "Nessuna preferenza specificata"
-  }
-5. EVITA assolutamente: ${
-    esclusioni.length > 0 ? esclusioni.join(", ") : "Nessuna esclusione"
-  }
-6. MANTIENI familiarità con i pasti storici più frequenti
-7. INTRODUCI 2-3 variazioni creative mantenendo coerenza nutrizionale
-
-📊 STRUTTURA RICHIESTA:
-- 7 giorni consecutivi (Lunedì-Domenica)
-- 3 pasti per giorno: Colazione, Pranzo, Cena
-- Descrizioni dettagliate con grammature precise (stile database)
-- Ingredienti specifici e metodi di cottura
-- Calorie stimate per pasto
-
-🔄 VARIAZIONI:
-- Mantieni base sui pasti storici più frequenti (70%)
-- Introduci variazioni creative ma coerenti (30%)
-- Bilancia macronutrienti secondo le abitudini storiche
-- Rispetta i pattern settimanali identificati
-
-📝 OUTPUT RICHIESTO:
-Restituisci ESCLUSIVAMENTE un JSON valido senza markdown o altro testo:
-
-{
-  "piano_alimentare": {
-    "durata_giorni": 7,
-    "data_inizio": "${dataInizioFormatted}",
-    "media_calorica_target": [INSERISCI_MEDIA_STORICA],
-    "note_generazione": "Breve spiegazione delle scelte basate sul contesto storico",
-    "giorni": [
-      {
-        "giorno": 1,
-        "nome_giorno": "Lunedì",
-        "data": "${dataInizioFormatted}",
-        "calorie_totali_stimate": 0,
-        "pasti": {
-          "colazione": {
-            "nome": "Nome piatto preciso",
-            "descrizione_dettagliata": "Descrizione completa con grammature (es: 80g di avena, 200ml latte, 1 banana media 120g)",
-            "ingredienti": ["ingrediente1 (quantità)", "ingrediente2 (quantità)"],
-            "metodo_preparazione": "Breve descrizione preparazione",
-            "calorie_stimate": 400,
-            "macronutrienti": {
-              "proteine_g": 15,
-              "carboidrati_g": 45,
-              "grassi_g": 12
-            }
-          },
-          "pranzo": {
-            "nome": "Nome piatto preciso",
-            "descrizione_dettagliata": "Descrizione completa con grammature",
-            "ingredienti": ["ingrediente1 (quantità)", "ingrediente2 (quantità)"],
-            "metodo_preparazione": "Breve descrizione preparazione",
-            "calorie_stimate": 600,
-            "macronutrienti": {
-              "proteine_g": 30,
-              "carboidrati_g": 60,
-              "grassi_g": 20
-            }
-          },
-          "cena": {
-            "nome": "Nome piatto preciso", 
-            "descrizione_dettagliata": "Descrizione completa con grammature",
-            "ingredienti": ["ingrediente1 (quantità)", "ingrediente2 (quantità)"],
-            "metodo_preparazione": "Breve descrizione preparazione",
-            "calorie_stimate": 500,
-            "macronutrienti": {
-              "proteine_g": 25,
-              "carboidrati_g": 40,
-              "grassi_g": 18
-            }
-          }
-        }
-      }
-      // ... continua per tutti i 7 giorni
-    ]
-  }
-}
-
-🔍 CONTESTO STORICO E ANALISI:
-${contestoRAG}
-
-Genera ora il piano alimentare seguendo rigorosamente le istruzioni:`;
+  // Usa il nuovo sistema di prompt da file Markdown
+  return buildPromptPianoAlimentare(contestoRAG, preferenze, esclusioni);
 }
 
 // Funzione per chiamare Bedrock e generare il piano
@@ -982,7 +901,7 @@ async function generaPianoConBedrock(
   preferenze: string[],
   esclusioni: string[]
 ): Promise<{
-  piano_generato: any;
+  piano_generato: Record<string, unknown>;
   metadata_chiamata: {
     modello_utilizzato: string;
     modello_configurato: string;
@@ -1011,7 +930,7 @@ async function generaPianoConBedrock(
 
     // Configurazione chiamata Bedrock per Claude
     // Per Claude 3.7 Sonnet potrebbe essere necessario un inference profile
-    let modelIdToUse = modello;
+    const modelIdToUse = modello;
 
     const command = new InvokeModelCommand({
       modelId: modelIdToUse,
@@ -1334,33 +1253,40 @@ export async function POST(request: NextRequest) {
 }
 
 // Funzione di validazione dell'input
-function validateInput(body: any): string | null {
+function validateInput(body: unknown): string | null {
+  // Type guard per verificare che body sia un oggetto
+  if (!body || typeof body !== "object") {
+    return "Corpo della richiesta non valido";
+  }
+
+  const bodyObj = body as Record<string, unknown>;
+
   // Controllo presenza periodo_giorni
-  if (!body.periodo_giorni) {
+  if (!bodyObj.periodo_giorni) {
     return "Il parametro periodo_giorni è obbligatorio";
   }
 
   // Controllo che sia un numero
-  if (!Number.isInteger(body.periodo_giorni)) {
+  if (!Number.isInteger(bodyObj.periodo_giorni)) {
     return "Il parametro periodo_giorni deve essere un numero intero";
   }
 
   // Controllo range valido (minimo 7 giorni, massimo 365)
-  if (body.periodo_giorni < 7) {
+  if ((bodyObj.periodo_giorni as number) < 7) {
     return "Il periodo minimo è di 7 giorni";
   }
 
-  if (body.periodo_giorni > 365) {
+  if ((bodyObj.periodo_giorni as number) > 365) {
     return "Il periodo massimo è di 365 giorni";
   }
 
   // Validazione preferenze (opzionale)
-  if (body.preferenze && !Array.isArray(body.preferenze)) {
+  if (bodyObj.preferenze && !Array.isArray(bodyObj.preferenze)) {
     return "Le preferenze devono essere un array di stringhe";
   }
 
   // Validazione esclusioni (opzionale)
-  if (body.esclusioni && !Array.isArray(body.esclusioni)) {
+  if (bodyObj.esclusioni && !Array.isArray(bodyObj.esclusioni)) {
     return "Le esclusioni devono essere un array di stringhe";
   }
 

@@ -5,7 +5,7 @@ import {
   pianiPasti,
   dettagliNutrizionaliGiornalieri,
 } from "@/db/schema";
-import { sql, gte, desc, count, avg, eq, inArray } from "drizzle-orm";
+import { gte, desc, count, avg, eq, inArray } from "drizzle-orm";
 import {
   AnalisiStorica,
   PianoAlimentare,

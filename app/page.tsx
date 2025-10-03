@@ -7,7 +7,9 @@ export default function Home() {
   const [preferenze, setPreferenze] = useState("");
   const [esclusioni, setEsclusioni] = useState("");
   const [loading, setLoading] = useState(false);
-  const [risultato, setRisultato] = useState<any>(null);
+  const [risultato, setRisultato] = useState<Record<string, unknown> | null>(
+    null
+  );
   const [errore, setErrore] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +42,7 @@ export default function Home() {
       } else {
         setRisultato(data);
       }
-    } catch (error) {
+    } catch {
       setErrore("Errore di connessione");
     } finally {
       setLoading(false);
