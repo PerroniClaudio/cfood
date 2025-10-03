@@ -6,7 +6,7 @@ import {
   pianiPasti,
   dettagliNutrizionaliGiornalieri,
 } from "@/db/schema";
-import { sql, gte, desc, count, avg, eq, inArray } from "drizzle-orm";
+import { sql, gte, desc, count, avg, eq, inArray, max } from "drizzle-orm";
 import {
   GeneraPianoRequest,
   AnalisiStorica,
@@ -558,6 +558,532 @@ async function getRetrievalIbrido(
   return risultatiFinali;
 }
 
+// FASE 4: Costruzione Contesto RAG
+
+// 1. Formattazione statistiche storiche in testo leggibile
+function formattaStatisticheStoriche(statistiche: StatisticheGenerali): string {
+  const {
+    totale_piani,
+    media_calorie_giornaliere,
+    distribuzione_macro,
+    conteggio_pasti,
+  } = statistiche;
+
+  if (totale_piani === 0) {
+    return "Nessun dato storico disponibile per il periodo analizzato.";
+  }
+
+  // Calcola totale pasti per percentuali
+  const totalePasti =
+    conteggio_pasti.colazione + conteggio_pasti.pranzo + conteggio_pasti.cena;
+
+  // Calcola totale macronutrienti per percentuali
+  const totaleMacro =
+    distribuzione_macro.proteine_avg +
+    distribuzione_macro.carboidrati_avg +
+    distribuzione_macro.grassi_avg;
+
+  let testo = `Analisi storica basata su ${totale_piani} piani alimentari:\n\n`;
+
+  // Statistiche caloriche
+  testo += `PROFILO NUTRIZIONALE:\n`;
+  testo += `• Media calorica giornaliera: ${media_calorie_giornaliere} kcal\n`;
+
+  // Distribuzione macronutrienti con percentuali
+  if (totaleMacro > 0) {
+    const percProteine = Math.round(
+      (distribuzione_macro.proteine_avg / totaleMacro) * 100
+    );
+    const percCarboidrati = Math.round(
+      (distribuzione_macro.carboidrati_avg / totaleMacro) * 100
+    );
+    const percGrassi = Math.round(
+      (distribuzione_macro.grassi_avg / totaleMacro) * 100
+    );
+
+    testo += `• Proteine: ${distribuzione_macro.proteine_avg}g (${percProteine}%)\n`;
+    testo += `• Carboidrati: ${distribuzione_macro.carboidrati_avg}g (${percCarboidrati}%)\n`;
+    testo += `• Grassi: ${distribuzione_macro.grassi_avg}g (${percGrassi}%)\n\n`;
+  }
+
+  // Distribuzione pasti con frequenze e percentuali
+  testo += `DISTRIBUZIONE PASTI:\n`;
+  if (totalePasti > 0) {
+    const percColazione = Math.round(
+      (conteggio_pasti.colazione / totalePasti) * 100
+    );
+    const percPranzo = Math.round((conteggio_pasti.pranzo / totalePasti) * 100);
+    const percCena = Math.round((conteggio_pasti.cena / totalePasti) * 100);
+
+    testo += `• Colazioni: ${conteggio_pasti.colazione} pasti (${percColazione}%)\n`;
+    testo += `• Pranzi: ${conteggio_pasti.pranzo} pasti (${percPranzo}%)\n`;
+    testo += `• Cene: ${conteggio_pasti.cena} pasti (${percCena}%)\n`;
+  } else {
+    testo += `• Nessun dato sui pasti disponibile\n`;
+  }
+
+  return testo;
+}
+
+// 2. Formattazione pattern temporali in stringhe descrittive
+function formattaPatternTemporali(pattern: PatternTemporale[]): string {
+  if (pattern.length === 0) {
+    return "Nessun pattern temporale identificato.";
+  }
+
+  // Calcola medie generali per confronti
+  const mediaGeneraleCalorie =
+    pattern.reduce((sum, p) => sum + p.media_calorie, 0) / pattern.length;
+  const mediaGeneraleProteine =
+    pattern.reduce((sum, p) => sum + p.media_proteine, 0) / pattern.length;
+
+  let testo = `PATTERN SETTIMANALI:\n`;
+
+  pattern.forEach((p) => {
+    // Calcola variazioni percentuali rispetto alla media
+    const variazCalorie =
+      mediaGeneraleCalorie > 0
+        ? Math.round(
+            ((p.media_calorie - mediaGeneraleCalorie) / mediaGeneraleCalorie) *
+              100
+          )
+        : 0;
+    const variazProteine =
+      mediaGeneraleProteine > 0
+        ? Math.round(
+            ((p.media_proteine - mediaGeneraleProteine) /
+              mediaGeneraleProteine) *
+              100
+          )
+        : 0;
+
+    testo += `• ${p.nome_giorno}: `;
+
+    // Descrizioni delle variazioni
+    if (Math.abs(variazCalorie) >= 5) {
+      testo += `${variazCalorie > 0 ? "+" : ""}${variazCalorie}% calorie (${
+        p.media_calorie
+      } kcal)`;
+    } else {
+      testo += `${p.media_calorie} kcal standard`;
+    }
+
+    if (Math.abs(variazProteine) >= 10) {
+      testo += `, ${
+        variazProteine > 0 ? "+" : ""
+      }${variazProteine}% proteine (${p.media_proteine}g)`;
+    } else {
+      testo += `, ${p.media_proteine}g proteine`;
+    }
+
+    testo += `\n`;
+  });
+
+  return testo;
+}
+
+// 3. Formattazione preferenze alimentari rilevate
+function formattaPreferenzeRilevate(preferenze: PreferenzaRilevata[]): string {
+  if (preferenze.length === 0) {
+    return "Nessuna preferenza alimentare specifica rilevata.";
+  }
+
+  // Calcola il totale per le percentuali
+  const totaleFrequenze = preferenze.reduce((sum, p) => sum + p.frequenza, 0);
+
+  let testo = `PREFERENZE ALIMENTARI RILEVATE:\n`;
+
+  preferenze.forEach((p) => {
+    const percentuale =
+      totaleFrequenze > 0
+        ? Math.round((p.frequenza / totaleFrequenze) * 100)
+        : 0;
+
+    // Capitalizza il nome dell'ingrediente
+    const ingredienteFormatted =
+      p.ingrediente.charAt(0).toUpperCase() + p.ingrediente.slice(1);
+
+    testo += `• ${ingredienteFormatted}: ${p.frequenza} occorrenze (${percentuale}%)\n`;
+  });
+
+  return testo;
+}
+
+// 4. Seleziona e formatta top 5 pasti per frequenza
+function formattaTopPastiFrequenza(pasti: TopPasto[]): string {
+  if (pasti.length === 0) {
+    return "Nessun pasto frequente identificato.";
+  }
+
+  const top5 = pasti.slice(0, 5);
+  let testo = `TOP 5 PASTI PIÙ FREQUENTI:\n`;
+
+  top5.forEach((pasto, index) => {
+    const tipoFormatted =
+      pasto.tipo_pasto.charAt(0).toUpperCase() + pasto.tipo_pasto.slice(1);
+    testo += `${index + 1}. [${tipoFormatted}] ${pasto.nome_pasto} (${
+      pasto.frequenza
+    } volte)\n`;
+  });
+
+  return testo;
+}
+
+// 5. Seleziona e formatta top 5 pasti semanticamente rilevanti
+function formattaTopPastiSimilarita(
+  pasti: Array<{
+    id: number;
+    descrizione: string;
+    tipo_pasto: string;
+    score_finale: number;
+    dettagli: {
+      frequenza?: number;
+      score_frequenza: number;
+      similarita?: number;
+      score_similarita: number;
+      fonte: "frequenza" | "similarita" | "entrambi";
+    };
+  }>
+): string {
+  if (pasti.length === 0) {
+    return "Nessun pasto semanticamente rilevante trovato.";
+  }
+
+  // Filtra solo quelli con componente di similarità e prendi top 5
+  const pastiConSimilarita = pasti
+    .filter((p) => p.dettagli.score_similarita > 0)
+    .slice(0, 5);
+
+  if (pastiConSimilarita.length === 0) {
+    return "Nessun pasto con similarità semantica disponibile.";
+  }
+
+  let testo = `TOP 5 PASTI SEMANTICAMENTE RILEVANTI:\n`;
+
+  pastiConSimilarita.forEach((pasto, index) => {
+    const tipoFormatted =
+      pasto.tipo_pasto.charAt(0).toUpperCase() + pasto.tipo_pasto.slice(1);
+    const scorePercent = Math.round(pasto.dettagli.score_similarita * 100);
+    const scoreFinalePercent = Math.round(pasto.score_finale * 100);
+
+    testo += `${index + 1}. [${tipoFormatted}] ${pasto.descrizione}\n`;
+    testo += `   Similarità: ${scorePercent}%, Score totale: ${scoreFinalePercent}%`;
+
+    if (pasto.dettagli.frequenza) {
+      testo += `, Freq: ${pasto.dettagli.frequenza}`;
+    }
+
+    testo += `\n`;
+  });
+
+  return testo;
+}
+
+// 6. Funzione principale per assemblare il contesto RAG completo
+function assemblaContestoRAG(
+  analisiStorica: AnalisiStorica,
+  pastiRaccomandati: Array<{
+    id: number;
+    descrizione: string;
+    tipo_pasto: string;
+    score_finale: number;
+    dettagli: {
+      frequenza?: number;
+      score_frequenza: number;
+      similarita?: number;
+      score_similarita: number;
+      fonte: "frequenza" | "similarita" | "entrambi";
+    };
+  }>
+): string {
+  let contesto = "=== CONTESTO PER GENERAZIONE PIANO ALIMENTARE ===\n\n";
+
+  // 1. Statistiche storiche
+  contesto += formattaStatisticheStoriche(analisiStorica.statistiche_generali);
+  contesto += "\n";
+
+  // 2. Pattern temporali
+  contesto += formattaPatternTemporali(analisiStorica.pattern_temporali);
+  contesto += "\n";
+
+  // 3. Preferenze rilevate
+  contesto += formattaPreferenzeRilevate(analisiStorica.preferenze_rilevate);
+  contesto += "\n";
+
+  // 4. Top pasti frequenti
+  contesto += formattaTopPastiFrequenza(analisiStorica.top_pasti);
+  contesto += "\n";
+
+  // 5. Top pasti semanticamente rilevanti
+  contesto += formattaTopPastiSimilarita(pastiRaccomandati);
+  contesto += "\n";
+
+  contesto += "=== FINE CONTESTO ===";
+
+  // Controllo lunghezza approssimativa (4000 token ≈ 16000 caratteri)
+  if (contesto.length > 16000) {
+    console.warn(`Contesto RAG troppo lungo: ${contesto.length} caratteri`);
+    // Eventuale troncamento se necessario
+  }
+
+  return contesto;
+}
+
+// FASE 5: Prima Chiamata Bedrock - Generazione Piano
+
+// Configurazione modello da variabile d'ambiente
+const getBedrockModel = (): string => {
+  const modelFromEnv = process.env.AWS_BEDROCK_MODEL;
+  if (!modelFromEnv) {
+    throw new Error("Variabile d'ambiente AWS_BEDROCK_MODEL non configurata!");
+  }
+
+  console.log(`✅ Usando modello da ENV: ${modelFromEnv}`);
+  return modelFromEnv;
+};
+
+// Costruzione prompt principale per generazione piano
+function costruisciPromptPianoAlimentare(
+  contestoRAG: string,
+  preferenze: string[],
+  esclusioni: string[]
+): string {
+  const dataInizio = new Date();
+  const dataInizioFormatted = dataInizio.toISOString().split("T")[0];
+
+  return `Sei un nutrizionista esperto specializzato nella creazione di piani alimentari personalizzati basati su analisi storiche.
+
+🎯 OBIETTIVO: Crea un piano alimentare di 7 giorni bilanciato e personalizzato.
+
+📋 ISTRUZIONI PRECISE:
+1. USA ESCLUSIVAMENTE le informazioni del contesto storico fornito per basare le tue scelte
+2. MANTIENI i pattern storici rilevati (variazioni settimanali, preferenze alimentari)
+3. RISPETTA le medie nutrizionali del periodo storico analizzato
+4. SEGUI preferenze utente: ${
+    preferenze.length > 0
+      ? preferenze.join(", ")
+      : "Nessuna preferenza specificata"
+  }
+5. EVITA assolutamente: ${
+    esclusioni.length > 0 ? esclusioni.join(", ") : "Nessuna esclusione"
+  }
+6. MANTIENI familiarità con i pasti storici più frequenti
+7. INTRODUCI 2-3 variazioni creative mantenendo coerenza nutrizionale
+
+📊 STRUTTURA RICHIESTA:
+- 7 giorni consecutivi (Lunedì-Domenica)
+- 3 pasti per giorno: Colazione, Pranzo, Cena
+- Descrizioni dettagliate con grammature precise (stile database)
+- Ingredienti specifici e metodi di cottura
+- Calorie stimate per pasto
+
+🔄 VARIAZIONI:
+- Mantieni base sui pasti storici più frequenti (70%)
+- Introduci variazioni creative ma coerenti (30%)
+- Bilancia macronutrienti secondo le abitudini storiche
+- Rispetta i pattern settimanali identificati
+
+📝 OUTPUT RICHIESTO:
+Restituisci ESCLUSIVAMENTE un JSON valido senza markdown o altro testo:
+
+{
+  "piano_alimentare": {
+    "durata_giorni": 7,
+    "data_inizio": "${dataInizioFormatted}",
+    "media_calorica_target": [INSERISCI_MEDIA_STORICA],
+    "note_generazione": "Breve spiegazione delle scelte basate sul contesto storico",
+    "giorni": [
+      {
+        "giorno": 1,
+        "nome_giorno": "Lunedì",
+        "data": "${dataInizioFormatted}",
+        "calorie_totali_stimate": 0,
+        "pasti": {
+          "colazione": {
+            "nome": "Nome piatto preciso",
+            "descrizione_dettagliata": "Descrizione completa con grammature (es: 80g di avena, 200ml latte, 1 banana media 120g)",
+            "ingredienti": ["ingrediente1 (quantità)", "ingrediente2 (quantità)"],
+            "metodo_preparazione": "Breve descrizione preparazione",
+            "calorie_stimate": 400,
+            "macronutrienti": {
+              "proteine_g": 15,
+              "carboidrati_g": 45,
+              "grassi_g": 12
+            }
+          },
+          "pranzo": {
+            "nome": "Nome piatto preciso",
+            "descrizione_dettagliata": "Descrizione completa con grammature",
+            "ingredienti": ["ingrediente1 (quantità)", "ingrediente2 (quantità)"],
+            "metodo_preparazione": "Breve descrizione preparazione",
+            "calorie_stimate": 600,
+            "macronutrienti": {
+              "proteine_g": 30,
+              "carboidrati_g": 60,
+              "grassi_g": 20
+            }
+          },
+          "cena": {
+            "nome": "Nome piatto preciso", 
+            "descrizione_dettagliata": "Descrizione completa con grammature",
+            "ingredienti": ["ingrediente1 (quantità)", "ingrediente2 (quantità)"],
+            "metodo_preparazione": "Breve descrizione preparazione",
+            "calorie_stimate": 500,
+            "macronutrienti": {
+              "proteine_g": 25,
+              "carboidrati_g": 40,
+              "grassi_g": 18
+            }
+          }
+        }
+      }
+      // ... continua per tutti i 7 giorni
+    ]
+  }
+}
+
+🔍 CONTESTO STORICO E ANALISI:
+${contestoRAG}
+
+Genera ora il piano alimentare seguendo rigorosamente le istruzioni:`;
+}
+
+// Funzione per chiamare Bedrock e generare il piano
+async function generaPianoConBedrock(
+  contestoRAG: string,
+  preferenze: string[],
+  esclusioni: string[]
+): Promise<{
+  piano_generato: any;
+  metadata_chiamata: {
+    modello_utilizzato: string;
+    modello_configurato: string;
+    lunghezza_prompt: number;
+    token_input_stimati: number;
+    token_output_ricevuti: number;
+    tempo_elaborazione_ms: number;
+  };
+}> {
+  const startTime = Date.now();
+  const modello = getBedrockModel();
+
+  try {
+    // Costruzione prompt
+    const prompt = costruisciPromptPianoAlimentare(
+      contestoRAG,
+      preferenze,
+      esclusioni
+    );
+    const tokenInputStimati = Math.ceil(prompt.length / 4);
+
+    console.log(`🤖 Chiamata Bedrock - Modello: ${modello}`);
+    console.log(
+      `📝 Prompt: ${prompt.length} caratteri (${tokenInputStimati} token stimati)`
+    );
+
+    // Configurazione chiamata Bedrock per Claude
+    // Per Claude 3.7 Sonnet potrebbe essere necessario un inference profile
+    let modelIdToUse = modello;
+
+    const command = new InvokeModelCommand({
+      modelId: modelIdToUse,
+      body: JSON.stringify({
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 80000,
+        temperature: 0.7,
+        top_p: 0.9,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    // Esecuzione chiamata
+    console.log("🚀 Invio richiesta a Bedrock...");
+    const response = await bedrockClient.send(command);
+
+    // Parsing risposta
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    const contenutoRisposta = responseBody.content[0].text;
+    const tokenOutput =
+      responseBody.usage?.output_tokens ||
+      Math.ceil(contenutoRisposta.length / 4);
+
+    console.log(`✅ Risposta ricevuta: ${contenutoRisposta.length} caratteri`);
+    console.log(
+      `📊 Token utilizzati: ${tokenInputStimati} input + ${tokenOutput} output`
+    );
+
+    // Parsing e validazione JSON
+    let pianoGenerato;
+    try {
+      // Rimuovi eventuali markdown wrapper
+      const jsonString = contenutoRisposta
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+      pianoGenerato = JSON.parse(jsonString);
+
+      // Validazione struttura base
+      if (!pianoGenerato.piano_alimentare) {
+        throw new Error("Struttura JSON non valida: manca 'piano_alimentare'");
+      }
+
+      if (
+        !pianoGenerato.piano_alimentare.giorni ||
+        !Array.isArray(pianoGenerato.piano_alimentare.giorni)
+      ) {
+        throw new Error("Struttura JSON non valida: manca 'giorni' array");
+      }
+
+      if (pianoGenerato.piano_alimentare.giorni.length !== 7) {
+        throw new Error(
+          `Piano deve avere 7 giorni, ricevuti: ${pianoGenerato.piano_alimentare.giorni.length}`
+        );
+      }
+
+      console.log("✅ JSON validato con successo");
+    } catch (parseError) {
+      console.error("❌ Errore parsing JSON:", parseError);
+      console.error(
+        "🔍 Contenuto ricevuto:",
+        contenutoRisposta.substring(0, 500) + "..."
+      );
+      throw new Error(
+        `Errore parsing JSON dalla risposta LLM: ${
+          parseError instanceof Error
+            ? parseError.message
+            : "Errore sconosciuto"
+        }`
+      );
+    }
+
+    const endTime = Date.now();
+
+    return {
+      piano_generato: pianoGenerato,
+      metadata_chiamata: {
+        modello_utilizzato: modelIdToUse, // Usa il modello effettivamente chiamato
+        modello_configurato: modello, // Modello originale dal .env
+        lunghezza_prompt: prompt.length,
+        token_input_stimati: tokenInputStimati,
+        token_output_ricevuti: tokenOutput,
+        tempo_elaborazione_ms: endTime - startTime,
+      },
+    };
+  } catch (error) {
+    console.error("❌ Errore nella chiamata Bedrock:", error);
+    throw new Error(
+      `Errore generazione piano con Bedrock: ${
+        error instanceof Error ? error.message : "Errore sconosciuto"
+      }`
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Parsing del body della richiesta
@@ -593,20 +1119,177 @@ export async function POST(request: NextRequest) {
     );
     console.log("Retrieval ibrido completato");
 
-    // Risposta con analisi storica e pasti raccomandati inclusi
-    // Risposta con analisi storica e pasti raccomandati inclusi
+    // FASE 4: Costruzione Contesto RAG
+    console.log("Costruzione contesto RAG...");
+    const contestoRAG = assemblaContestoRAG(analisiStorica, pastiRaccomandati);
+    console.log(`Contesto RAG generato: ${contestoRAG.length} caratteri`);
+
+    // FASE 5: Prima Chiamata Bedrock - Generazione Piano
+    console.log("🤖 Inizio FASE 5: Generazione piano con Bedrock...");
+    const risultatoGenerazione = await generaPianoConBedrock(
+      contestoRAG,
+      preferenze,
+      esclusioni
+    );
+    console.log(
+      `✅ Piano generato con successo in ${risultatoGenerazione.metadata_chiamata.tempo_elaborazione_ms}ms`
+    );
+
+    // Preparazione dati per risposta strutturata
+    const timestamp = new Date().toISOString();
+    const pianoId = Math.random().toString(36).substr(2, 9);
+
+    // Conteggi e statistiche per il summary
+    const totalePastiRaccomandati = pastiRaccomandati.length;
+    const pastiConSimilarita = pastiRaccomandati.filter(
+      (p) => p.dettagli.score_similarita > 0
+    ).length;
+    const pastiConFrequenza = pastiRaccomandati.filter(
+      (p) => p.dettagli.frequenza && p.dettagli.frequenza > 0
+    ).length;
+
+    // Risposta HTTP riformulata e strutturata
     return NextResponse.json({
+      // === HEADER DELLA RISPOSTA ===
       success: true,
-      message: "Analisi storica e retrieval ibrido completati con successo!",
-      parametri: { periodo_giorni, preferenze, esclusioni },
-      analisi_storica: analisiStorica,
-      pasti_raccomandati: pastiRaccomandati,
-      piano: {
-        id: Math.random().toString(36).substr(2, 9),
-        creato_il: new Date().toISOString(),
-        giorni_totali: periodo_giorni,
-        pasti_pianificati: periodo_giorni * 3, // colazione, pranzo, cena
-        metodo_retrieval: "ibrido_frequenza_similarita",
+      timestamp,
+      piano_id: pianoId,
+      fase_completata: "FASE_5_PIANO_GENERATO",
+
+      // === PARAMETRI RICHIESTA ===
+      richiesta: {
+        periodo_giorni,
+        preferenze:
+          preferenze.length > 0
+            ? preferenze
+            : ["Nessuna preferenza specificata"],
+        esclusioni:
+          esclusioni.length > 0
+            ? esclusioni
+            : ["Nessuna esclusione specificata"],
+      },
+
+      // === SUMMARY ESECUZIONE ===
+      summary: {
+        message:
+          "✅ Pipeline completa: Piano alimentare generato con successo!",
+        fasi_completate: [
+          "FASE_2: Analisi storica dei dati",
+          "FASE_3: Retrieval ibrido (frequenza + similarità)",
+          "FASE_4: Costruzione contesto RAG",
+          "FASE_5: Generazione piano con Bedrock",
+        ],
+        statistiche_elaborazione: {
+          piani_storici_analizzati:
+            analisiStorica.statistiche_generali.totale_piani,
+          pattern_temporali_identificati:
+            analisiStorica.pattern_temporali.length,
+          preferenze_alimentari_rilevate:
+            analisiStorica.preferenze_rilevate.length,
+          top_pasti_frequenti: analisiStorica.top_pasti.length,
+          pasti_raccomandati_totali: totalePastiRaccomandati,
+          pasti_con_score_similarita: pastiConSimilarita,
+          pasti_con_dati_frequenza: pastiConFrequenza,
+        },
+      },
+
+      // === RISULTATI ANALISI STORICA ===
+      analisi_storica: {
+        periodo_analizzato_giorni: periodo_giorni,
+        piani_recenti: {
+          count: analisiStorica.piani_recenti.length,
+          data: analisiStorica.piani_recenti.slice(0, 3), // Mostra solo i primi 3 per brevità
+        },
+        profilo_nutrizionale: analisiStorica.statistiche_generali,
+        pattern_settimanali: analisiStorica.pattern_temporali,
+        top_pasti_storici: analisiStorica.top_pasti.slice(0, 5),
+        preferenze_identificate: analisiStorica.preferenze_rilevate,
+      },
+
+      // === RISULTATI RETRIEVAL IBRIDO ===
+      retrieval_ibrido: {
+        metodologia:
+          "Combinazione frequenza storica (70%) + similarità semantica (30%)",
+        pasti_raccomandati: {
+          totali: totalePastiRaccomandati,
+          top_5_score_finale: pastiRaccomandati.slice(0, 5).map((p) => ({
+            id: p.id,
+            descrizione: p.descrizione,
+            tipo: p.tipo_pasto,
+            score_finale_percentuale: Math.round(p.score_finale * 100),
+            dettagli: {
+              fonte: p.dettagli.fonte,
+              score_frequenza_perc: Math.round(
+                p.dettagli.score_frequenza * 100
+              ),
+              score_similarita_perc: Math.round(
+                p.dettagli.score_similarita * 100
+              ),
+              frequenza_storica: p.dettagli.frequenza || 0,
+            },
+          })),
+        },
+      },
+
+      // === CONTESTO RAG GENERATO ===
+      contesto_rag: {
+        stato: "✅ Generato con successo",
+        metriche: {
+          lunghezza_caratteri: contestoRAG.length,
+          token_stimati: Math.ceil(contestoRAG.length / 4),
+          limite_token: 4000,
+          utilizzo_percentuale: Math.round(
+            (Math.ceil(contestoRAG.length / 4) / 4000) * 100
+          ),
+        },
+        componenti_incluse: {
+          "📊 Statistiche storiche": true,
+          "📈 Pattern temporali": analisiStorica.pattern_temporali.length > 0,
+          "🍽️ Preferenze rilevate":
+            analisiStorica.preferenze_rilevate.length > 0,
+          "⭐ Top pasti frequenti": analisiStorica.top_pasti.length > 0,
+          "🎯 Pasti semanticamente rilevanti": pastiConSimilarita > 0,
+        },
+        testo_completo: contestoRAG,
+      },
+
+      // === PIANO ALIMENTARE GENERATO ===
+      piano_alimentare: {
+        id: pianoId,
+        stato: "✅ Generato con successo",
+        creato_il: timestamp,
+        configurazione: {
+          durata_giorni: 7,
+          pasti_totali_pianificati: 21,
+          pasti_per_giorno: ["Colazione", "Pranzo", "Cena"],
+        },
+        dettagli_generazione: {
+          modello_utilizzato:
+            risultatoGenerazione.metadata_chiamata.modello_utilizzato,
+          tempo_elaborazione_ms:
+            risultatoGenerazione.metadata_chiamata.tempo_elaborazione_ms,
+          token_input:
+            risultatoGenerazione.metadata_chiamata.token_input_stimati,
+          token_output:
+            risultatoGenerazione.metadata_chiamata.token_output_ricevuti,
+          lunghezza_prompt:
+            risultatoGenerazione.metadata_chiamata.lunghezza_prompt,
+        },
+        piano_completo: risultatoGenerazione.piano_generato,
+        prossimi_passi: [
+          "FASE_6: Validazione nutrizionale e bilanciamento",
+          "FASE_7: Salvataggio piano nel database",
+          "FASE_8: Finalizzazione e notifica utente",
+        ],
+      },
+
+      // === METADATA TECNICI ===
+      metadata: {
+        versione_api: "1.0",
+        ambiente: process.env.NODE_ENV || "development",
+        processing_time_ms: Date.now() - new Date(timestamp).getTime(),
+        retrieval_method: "hybrid_frequency_similarity",
+        embedding_model: "amazon.titan-embed-text-v2:0",
       },
     });
   } catch (error) {
