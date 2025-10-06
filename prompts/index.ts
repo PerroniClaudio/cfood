@@ -57,6 +57,19 @@ export function buildPromptPianoAlimentare(
 }
 
 /**
+ * Costruisce il prompt per l'analisi nutrizionale di un singolo pasto
+ */
+export function buildPromptAnalisiNutrizionale(
+  descrizionePasto: string
+): string {
+  const variables = {
+    descrizionePasto: descrizionePasto,
+  };
+
+  return loadPromptTemplate("analisi-nutrizionale.md", variables);
+}
+
+/**
  * Lista tutti i prompt disponibili nella cartella prompts
  */
 export function getAvailablePrompts(): string[] {

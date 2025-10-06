@@ -15,12 +15,17 @@ import {
   TopPasto,
   PatternTemporale,
   PreferenzaRilevata,
+  ValoriNutrizionaliPasto,
+  ValoriNutrizionaliGiorno,
 } from "@/types/genera-piano";
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
-import { buildPromptPianoAlimentare } from "@/prompts";
+import {
+  buildPromptPianoAlimentare,
+  buildPromptAnalisiNutrizionale,
+} from "@/prompts";
 
 // ================================
 // CONFIGURAZIONE E COSTANTI
@@ -1031,6 +1036,455 @@ async function generaPianoConBedrock(
   }
 }
 
+// FASE 6: Calcolo Nutrizionale A Posteriori
+
+// Valori nutrizionali di fallback per tipo di pasto
+const FALLBACK_NUTRIZIONALI = {
+  colazione: {
+    calorie_stimate: 350,
+    proteine_g: 15,
+    carboidrati_g: 45,
+    grassi_g: 12,
+  },
+  pranzo: {
+    calorie_stimate: 550,
+    proteine_g: 25,
+    carboidrati_g: 65,
+    grassi_g: 18,
+  },
+  cena: {
+    calorie_stimate: 450,
+    proteine_g: 22,
+    carboidrati_g: 35,
+    grassi_g: 20,
+  },
+} as const;
+
+// Template prompt per analisi nutrizionale
+function costruisciPromptNutrizionale(descrizionePasto: string): string {
+  // Usa il nuovo sistema di prompt da file Markdown
+  return buildPromptAnalisiNutrizionale(descrizionePasto);
+}
+
+// Funzione per chiamare Bedrock per analisi nutrizionale singolo pasto
+async function calcolaValoriNutrizionaliPasto(
+  descrizionePasto: string,
+  tipoPasto: "colazione" | "pranzo" | "cena"
+): Promise<ValoriNutrizionaliPasto> {
+  const modello = getBedrockModel();
+
+  try {
+    // Costruisci prompt nutrizionale
+    const prompt = costruisciPromptNutrizionale(descrizionePasto);
+
+    console.log(
+      `🧮 Calcolo nutrizionale per ${tipoPasto}: ${descrizionePasto.substring(
+        0,
+        50
+      )}...`
+    );
+
+    // Configurazione chiamata Bedrock (timeout più breve per analisi rapida)
+    const command = new InvokeModelCommand({
+      modelId: modello,
+      body: JSON.stringify({
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 1000, // Ridotto per risposta JSON breve
+        temperature: 0.3, // Bassa per coerenza numerica
+        top_p: 0.8,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    // Esecuzione chiamata
+    const response = await bedrockClient.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    const contenutoRisposta = responseBody.content[0].text;
+
+    // Parsing JSON dalla risposta
+    try {
+      // Rimuovi eventuali markdown wrapper
+      const jsonString = contenutoRisposta
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+
+      const risultato = JSON.parse(jsonString);
+
+      // Validazione struttura
+      if (!risultato.valori_nutrizionali) {
+        throw new Error(
+          "Struttura JSON non valida: manca 'valori_nutrizionali'"
+        );
+      }
+
+      const valori = risultato.valori_nutrizionali;
+
+      // Validazione e normalizzazione valori
+      const calorie_stimate = Math.round(Number(valori.calorie_stimate) || 0);
+      const proteine_g = Math.round(Number(valori.proteine_g) || 0);
+      const carboidrati_g = Math.round(Number(valori.carboidrati_g) || 0);
+      const grassi_g = Math.round(Number(valori.grassi_g) || 0);
+
+      // Validazione range realistici
+      if (
+        calorie_stimate < 50 ||
+        calorie_stimate > 2000 ||
+        proteine_g < 0 ||
+        carboidrati_g < 0 ||
+        grassi_g < 0
+      ) {
+        console.warn(
+          `⚠️ Valori nutrizionali sospetti per ${tipoPasto}: ${calorie_stimate}kcal, ${proteine_g}g prot`
+        );
+        throw new Error("Valori nutrizionali fuori range realistico");
+      }
+
+      console.log(
+        `✅ Calcolato: ${calorie_stimate}kcal, ${proteine_g}g prot, ${carboidrati_g}g carb, ${grassi_g}g grassi`
+      );
+
+      return {
+        calorie_stimate,
+        proteine_g,
+        carboidrati_g,
+        grassi_g,
+        stato_calcolo: "calcolato",
+        fonte_calcolo: "bedrock_ai",
+        descrizione_pasto: descrizionePasto,
+        tipo_pasto: tipoPasto,
+      };
+    } catch (parseError) {
+      console.error(`❌ Errore parsing JSON per ${tipoPasto}:`, parseError);
+      console.error(
+        "🔍 Contenuto ricevuto:",
+        contenutoRisposta.substring(0, 200)
+      );
+      throw parseError;
+    }
+  } catch (error) {
+    console.error(`❌ Errore calcolo nutrizionale per ${tipoPasto}:`, error);
+
+    // Fallback con valori stimati
+    const fallback = FALLBACK_NUTRIZIONALI[tipoPasto];
+    console.log(
+      `🔄 Usando valori fallback per ${tipoPasto}: ${fallback.calorie_stimate}kcal`
+    );
+
+    return {
+      calorie_stimate: fallback.calorie_stimate,
+      proteine_g: fallback.proteine_g,
+      carboidrati_g: fallback.carboidrati_g,
+      grassi_g: fallback.grassi_g,
+      stato_calcolo: "stimato",
+      fonte_calcolo: "fallback",
+      descrizione_pasto: descrizionePasto,
+      tipo_pasto: tipoPasto,
+    };
+  }
+}
+
+// Funzione per estrarre descrizioni pasti dal piano generato
+function estraiDescrizioniPasti(pianoGenerato: Record<string, unknown>): Array<{
+  giorno: number;
+  data: string;
+  pasti: {
+    colazione?: string;
+    pranzo?: string;
+    cena?: string;
+  };
+}> {
+  try {
+    // Accedi alla struttura del piano
+    const piano = pianoGenerato as Record<string, unknown>;
+    const pianoAlimentare = piano.piano_alimentare as Record<string, unknown>;
+    const giorni =
+      (pianoAlimentare?.giorni as Array<Record<string, unknown>>) || [];
+
+    return giorni.map((giorno: Record<string, unknown>, index: number) => {
+      const pastiGiorno: {
+        colazione?: string;
+        pranzo?: string;
+        cena?: string;
+      } = {};
+
+      // Estrai descrizioni per ogni tipo di pasto
+      const pasti = giorno.pasti as Record<string, Record<string, unknown>>;
+      if (pasti) {
+        if (pasti.colazione) {
+          const colazione = pasti.colazione as Record<string, unknown>;
+          pastiGiorno.colazione =
+            (colazione.descrizione as string) ||
+            (colazione.nome as string) ||
+            "Colazione non specificata";
+        }
+        if (pasti.pranzo) {
+          const pranzo = pasti.pranzo as Record<string, unknown>;
+          pastiGiorno.pranzo =
+            (pranzo.descrizione as string) ||
+            (pranzo.nome as string) ||
+            "Pranzo non specificato";
+        }
+        if (pasti.cena) {
+          const cena = pasti.cena as Record<string, unknown>;
+          pastiGiorno.cena =
+            (cena.descrizione as string) ||
+            (cena.nome as string) ||
+            "Cena non specificata";
+        }
+      }
+
+      return {
+        giorno: index + 1,
+        data:
+          (giorno.data as string) ||
+          new Date(Date.now() + index * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0],
+        pasti: pastiGiorno,
+      };
+    });
+  } catch (error) {
+    console.error("❌ Errore estrazione descrizioni pasti:", error);
+    // Fallback: 7 giorni con pasti generici
+    return Array.from({ length: 7 }, (_, index) => ({
+      giorno: index + 1,
+      data: new Date(Date.now() + index * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0],
+      pasti: {
+        colazione: "Colazione standard",
+        pranzo: "Pranzo standard",
+        cena: "Cena standard",
+      },
+    }));
+  }
+}
+
+// Funzione principale FASE 6: Calcolo nutrizionale completo del piano
+async function calcolaValoriNutrizionaliPiano(
+  pianoGenerato: Record<string, unknown>
+): Promise<{
+  valori_giornalieri: ValoriNutrizionaliGiorno[];
+  riepilogo_settimanale: {
+    calorie_totali_settimana: number;
+    media_calorie_giorno: number;
+    proteine_totali_g: number;
+    carboidrati_totali_g: number;
+    grassi_totali_g: number;
+    distribuzione_macro_media: {
+      proteine_perc: number;
+      carboidrati_perc: number;
+      grassi_perc: number;
+    };
+  };
+  statistiche_calcolo: {
+    pasti_totali: number;
+    pasti_calcolati_ai: number;
+    pasti_stimati_fallback: number;
+    pasti_con_errore: number;
+    tempo_elaborazione_ms: number;
+  };
+}> {
+  const startTime = Date.now();
+  console.log("🧮 Inizio FASE 6: Calcolo nutrizionale a posteriori...");
+
+  // Estrai descrizioni pasti dal piano
+  const descrizioniPasti = estraiDescrizioniPasti(pianoGenerato);
+
+  const valoriGiornalieri: ValoriNutrizionaliGiorno[] = [];
+  let pastiTotali = 0;
+  let pastiCalcolatiAI = 0;
+  let pastiStimati = 0;
+  let pastiConErrore = 0;
+
+  // Processa ogni giorno
+  for (const giornoData of descrizioniPasti) {
+    const valoriGiorno: ValoriNutrizionaliGiorno = {
+      giorno_numero: giornoData.giorno,
+      data_giorno: giornoData.data,
+      giorno_settimana: new Date(giornoData.data).toLocaleDateString("it-IT", {
+        weekday: "long",
+      }),
+      pasti: {},
+      totali_giorno: {
+        calorie_totali_kcal: 0,
+        proteine_totali_g: 0,
+        carboidrati_totali_g: 0,
+        grassi_totali_g: 0,
+        percentuali_macro: {
+          proteine_perc: 0,
+          carboidrati_perc: 0,
+          grassi_perc: 0,
+        },
+      },
+    };
+
+    // Calcola valori per ogni pasto del giorno
+    for (const [tipoPasto, descrizione] of Object.entries(giornoData.pasti)) {
+      if (descrizione) {
+        pastiTotali++;
+        const valoriPasto = await calcolaValoriNutrizionaliPasto(
+          descrizione,
+          tipoPasto as "colazione" | "pranzo" | "cena"
+        );
+
+        valoriGiorno.pasti[tipoPasto as keyof typeof valoriGiorno.pasti] =
+          valoriPasto;
+
+        // Aggiorna contatori
+        if (valoriPasto.fonte_calcolo === "bedrock_ai") {
+          pastiCalcolatiAI++;
+        } else {
+          pastiStimati++;
+        }
+
+        if (valoriPasto.stato_calcolo === "errore") {
+          pastiConErrore++;
+        }
+      }
+    }
+
+    // Calcola totali giornalieri
+    const colazione = valoriGiorno.pasti.colazione || {
+      calorie_stimate: 0,
+      proteine_g: 0,
+      carboidrati_g: 0,
+      grassi_g: 0,
+    };
+    const pranzo = valoriGiorno.pasti.pranzo || {
+      calorie_stimate: 0,
+      proteine_g: 0,
+      carboidrati_g: 0,
+      grassi_g: 0,
+    };
+    const cena = valoriGiorno.pasti.cena || {
+      calorie_stimate: 0,
+      proteine_g: 0,
+      carboidrati_g: 0,
+      grassi_g: 0,
+    };
+
+    const calorieTotali =
+      colazione.calorie_stimate + pranzo.calorie_stimate + cena.calorie_stimate;
+    const proteineTotali =
+      colazione.proteine_g + pranzo.proteine_g + cena.proteine_g;
+    const carboidratiTotali =
+      colazione.carboidrati_g + pranzo.carboidrati_g + cena.carboidrati_g;
+    const grassiTotali = colazione.grassi_g + pranzo.grassi_g + cena.grassi_g;
+
+    // Calcola percentuali macronutrienti (calorie da macro)
+    const calorieProteine = proteineTotali * 4;
+    const calorieCarboidrati = carboidratiTotali * 4;
+    const calorieGrassi = grassiTotali * 9;
+    const calorieMacroTotali =
+      calorieProteine + calorieCarboidrati + calorieGrassi;
+
+    valoriGiorno.totali_giorno = {
+      calorie_totali_kcal: calorieTotali,
+      proteine_totali_g: proteineTotali,
+      carboidrati_totali_g: carboidratiTotali,
+      grassi_totali_g: grassiTotali,
+      percentuali_macro: {
+        proteine_perc:
+          calorieMacroTotali > 0
+            ? Math.round((calorieProteine / calorieMacroTotali) * 100)
+            : 0,
+        carboidrati_perc:
+          calorieMacroTotali > 0
+            ? Math.round((calorieCarboidrati / calorieMacroTotali) * 100)
+            : 0,
+        grassi_perc:
+          calorieMacroTotali > 0
+            ? Math.round((calorieGrassi / calorieMacroTotali) * 100)
+            : 0,
+      },
+    };
+
+    valoriGiornalieri.push(valoriGiorno);
+  }
+
+  // Calcola riepilogo settimanale
+  const calorieTotaliSettimana = valoriGiornalieri.reduce(
+    (sum, g) => sum + g.totali_giorno.calorie_totali_kcal,
+    0
+  );
+  const proteineTotaliSettimana = valoriGiornalieri.reduce(
+    (sum, g) => sum + g.totali_giorno.proteine_totali_g,
+    0
+  );
+  const carboidratiTotaliSettimana = valoriGiornalieri.reduce(
+    (sum, g) => sum + g.totali_giorno.carboidrati_totali_g,
+    0
+  );
+  const grassiTotaliSettimana = valoriGiornalieri.reduce(
+    (sum, g) => sum + g.totali_giorno.grassi_totali_g,
+    0
+  );
+
+  const mediaCalorieGiorno = Math.round(calorieTotaliSettimana / 7);
+
+  // Calcola distribuzione macro media settimanale
+  const calorieProteineSettimana = proteineTotaliSettimana * 4;
+  const calorieCarboidratiSettimana = carboidratiTotaliSettimana * 4;
+  const calorieGrassiSettimana = grassiTotaliSettimana * 9;
+  const calorieMacroTotaliSettimana =
+    calorieProteineSettimana +
+    calorieCarboidratiSettimana +
+    calorieGrassiSettimana;
+
+  const endTime = Date.now();
+
+  console.log(`✅ FASE 6 completata in ${endTime - startTime}ms`);
+  console.log(
+    `📊 Elaborati ${pastiTotali} pasti: ${pastiCalcolatiAI} AI + ${pastiStimati} fallback`
+  );
+
+  return {
+    valori_giornalieri: valoriGiornalieri,
+    riepilogo_settimanale: {
+      calorie_totali_settimana: calorieTotaliSettimana,
+      media_calorie_giorno: mediaCalorieGiorno,
+      proteine_totali_g: proteineTotaliSettimana,
+      carboidrati_totali_g: carboidratiTotaliSettimana,
+      grassi_totali_g: grassiTotaliSettimana,
+      distribuzione_macro_media: {
+        proteine_perc:
+          calorieMacroTotaliSettimana > 0
+            ? Math.round(
+                (calorieProteineSettimana / calorieMacroTotaliSettimana) * 100
+              )
+            : 0,
+        carboidrati_perc:
+          calorieMacroTotaliSettimana > 0
+            ? Math.round(
+                (calorieCarboidratiSettimana / calorieMacroTotaliSettimana) *
+                  100
+              )
+            : 0,
+        grassi_perc:
+          calorieMacroTotaliSettimana > 0
+            ? Math.round(
+                (calorieGrassiSettimana / calorieMacroTotaliSettimana) * 100
+              )
+            : 0,
+      },
+    },
+    statistiche_calcolo: {
+      pasti_totali: pastiTotali,
+      pasti_calcolati_ai: pastiCalcolatiAI,
+      pasti_stimati_fallback: pastiStimati,
+      pasti_con_errore: pastiConErrore,
+      tempo_elaborazione_ms: endTime - startTime,
+    },
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Parsing del body della richiesta
@@ -1082,6 +1536,15 @@ export async function POST(request: NextRequest) {
       `✅ Piano generato con successo in ${risultatoGenerazione.metadata_chiamata.tempo_elaborazione_ms}ms`
     );
 
+    // FASE 6: Calcolo Nutrizionale A Posteriori
+    console.log("🧮 Inizio FASE 6: Calcolo nutrizionale a posteriori...");
+    const risultatoNutrizionale = await calcolaValoriNutrizionaliPiano(
+      risultatoGenerazione.piano_generato
+    );
+    console.log(
+      `✅ Calcolo nutrizionale completato in ${risultatoNutrizionale.statistiche_calcolo.tempo_elaborazione_ms}ms`
+    );
+
     // Preparazione dati per risposta strutturata
     const timestamp = new Date().toISOString();
     const pianoId = Math.random().toString(36).substr(2, 9);
@@ -1101,7 +1564,7 @@ export async function POST(request: NextRequest) {
       success: true,
       timestamp,
       piano_id: pianoId,
-      fase_completata: "FASE_5_PIANO_GENERATO",
+      fase_completata: "FASE_6_CALCOLO_NUTRIZIONALE_COMPLETATO",
 
       // === PARAMETRI RICHIESTA ===
       richiesta: {
@@ -1119,12 +1582,13 @@ export async function POST(request: NextRequest) {
       // === SUMMARY ESECUZIONE ===
       summary: {
         message:
-          "✅ Pipeline completa: Piano alimentare generato con successo!",
+          "✅ Pipeline completa: Piano alimentare con calcolo nutrizionale completato!",
         fasi_completate: [
           "FASE_2: Analisi storica dei dati",
           "FASE_3: Retrieval ibrido (frequenza + similarità)",
           "FASE_4: Costruzione contesto RAG",
           "FASE_5: Generazione piano con Bedrock",
+          "FASE_6: Calcolo nutrizionale a posteriori",
         ],
         statistiche_elaborazione: {
           piani_storici_analizzati:
@@ -1137,6 +1601,15 @@ export async function POST(request: NextRequest) {
           pasti_raccomandati_totali: totalePastiRaccomandati,
           pasti_con_score_similarita: pastiConSimilarita,
           pasti_con_dati_frequenza: pastiConFrequenza,
+          // Nuove statistiche FASE 6
+          pasti_analizzati_nutrizionalmente:
+            risultatoNutrizionale.statistiche_calcolo.pasti_totali,
+          pasti_calcolati_ai:
+            risultatoNutrizionale.statistiche_calcolo.pasti_calcolati_ai,
+          pasti_stimati_fallback:
+            risultatoNutrizionale.statistiche_calcolo.pasti_stimati_fallback,
+          media_calorie_giorno:
+            risultatoNutrizionale.riepilogo_settimanale.media_calorie_giorno,
         },
       },
 
