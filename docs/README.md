@@ -1,345 +1,261 @@
-# 📖 Documentazione Completa - Progetto CFood
+# CFood - Sistema AI per Generazione Piani Alimentari
 
-## 📁 Struttura Documentazione
+> **Sistema avanzato basato su AI per la generazione automatica di piani alimentari personalizzati utilizzando AWS Bedrock, retrieval ibrido e calcolo nutrizionale intelligente.**
 
-```
-docs/
-├── README.md                           # Questo file - Panoramica generale
-├── API_GENERA_PIANO.md                # Documentazione completa API
-├── FASI_PROCESSO_DETTAGLIATE.md       # Dettagli tecnici implementazione
-└── SETUP_GUIDE.md                     # Guida setup e configurazione
-```
+## 🎯 Panoramica del Progetto
 
-## 🎯 Panoramica Sistema
+CFood è una piattaforma Next.js 14 che implementa una pipeline completa a 7 fasi per la generazione di piani alimentari personalizzati. Il sistema combina analisi storica, retrieval ibrido RAG, AI generativa e calcolo nutrizionale per creare piani alimentari bilanciati e personalizzati.
 
-Il sistema **CFood Piano Alimentare** implementa una **pipeline RAG (Retrieval-Augmented Generation)** per generare piani alimentari personalizzati basati su:
+## 🏗️ Architettura del Sistema
 
-- **Analisi storica** dei dati utente
-- **Retrieval ibrido** (frequenza + similarità semantica)
-- **Contesto RAG** strutturato per LLM
-- **Generazione AI** tramite Claude 3.7 Sonnet
+### Pipeline Completa a 7 Fasi
 
-## 🏗️ Architettura Pipeline
+1. **FASE 2: Analisi Storica** 📊
 
-```mermaid
-graph LR
-    A[Input Utente] --> B[FASE 2: Analisi Storica]
-    B --> C[FASE 3: Retrieval Ibrido]
-    C --> D[FASE 4: Contesto RAG]
-    D --> E[FASE 5: Generazione LLM]
-    E --> F[Piano 7 Giorni]
+   - Analisi pattern alimentari passati
+   - Identificazione preferenze utente
+   - Calcolo statistiche nutrizionali storiche
 
-    B --> B1[Query Database]
-    B --> B2[Pattern Temporali]
-    B --> B3[Preferenze Rilevate]
+2. **FASE 3: Retrieval Ibrido** 🔍
 
-    C --> C1[Retrieval Frequenza 70%]
-    C --> C2[Retrieval Semantico 30%]
+   - Combinazione frequenza + similarità semantica
+   - Vector search con pgvector + PostgreSQL
+   - Modello Titan Embed Text v2 (1024 dimensioni)
 
-    D --> D1[Formattazione Testo]
-    D --> D2[Controllo Lunghezza]
+3. **FASE 4: Costruzione Contesto RAG** 📝
 
-    E --> E1[Prompt Engineering]
-    E --> E2[AWS Bedrock]
-    E --> E3[Validazione JSON]
-```
+   - Prompt engineering avanzato
+   - Sistema prompt template esternalizzato
+   - Integrazione dati storici e preferenze
 
-## 📚 Guide Documentazione
+4. **FASE 5: Generazione Piano** 🤖
 
-### 🚀 Per Iniziare
+   - AWS Bedrock con Claude 3.7 Sonnet
+   - Generazione piano settimanale strutturato
+   - Validazione JSON e controlli qualità
 
-**Leggi**: [`SETUP_GUIDE.md`](./SETUP_GUIDE.md)
+5. **FASE 6: Calcolo Nutrizionale** 🧮
 
-- Prerequisiti sistema
-- Configurazione AWS Bedrock
-- Setup database PostgreSQL + pgvector
-- Variabili d'ambiente
-- Testing e troubleshooting
+   - Analisi nutrizionale automatica con AI
+   - Valori per singoli pasti e aggregati giornalieri
+   - Sistema fallback per resilienza
 
-### 📡 Utilizzo API
-
-**Leggi**: [`API_GENERA_PIANO.md`](./API_GENERA_PIANO.md)
-
-- Endpoint documentation
-- Request/Response examples
-- Strutture dati complete
-- Monitoring e performance
-- Gestione errori
-
-### 🔧 Dettagli Tecnici
-
-**Leggi**: [`FASI_PROCESSO_DETTAGLIATE.md`](./FASI_PROCESSO_DETTAGLIATE.md)
-
-- Implementazione ogni fase
-- Query SQL dettagliate
-- Algoritmi di scoring
-- Prompt engineering
-- Configurazioni avanzate
-
-## ⚡ Quick Start
-
-### 1. Setup Rapido
-
-```bash
-# Clone e install
-git clone <repository>
-cd cfood/app/cfood
-pnpm install
-
-# Configura .env.local
-cp .env.example .env.local
-# Modifica con le tue credenziali AWS e database
-
-# Start development
-pnpm dev
-```
-
-### 2. Test API
-
-```bash
-curl -X POST http://localhost:3000/api/genera-piano \
-  -H "Content-Type: application/json" \
-  -d '{
-    "periodo_giorni": 30,
-    "preferenze": ["pesce", "verdure"],
-    "esclusioni": ["latticini"]
-  }'
-```
-
-### 3. Response Attesa
-
-```json
-{
-  "success": true,
-  "fase_completata": "FASE_5_PIANO_GENERATO",
-  "piano_alimentare": {
-    "stato": "✅ Generato con successo",
-    "piano_completo": {
-      "durata_giorni": 7,
-      "giorni": [
-        /* 7 giorni di pasti completi */
-      ]
-    }
-  }
-}
-```
+6. **FASE 7: Aggregazione e Salvataggio** 💾
+   - Calcolo totali giornalieri e settimanali
+   - Persistenza completa nel database
+   - Generazione embeddings per search futuro
 
 ## 🛠️ Stack Tecnologico
 
-### Backend
+### Frontend & Backend
 
-- **Next.js 14** - Framework fullstack
-- **TypeScript** - Type safety
-- **Drizzle ORM** - Database queries
-- **PostgreSQL + pgvector** - Database vettoriale
+- **Next.js 14** - Framework full-stack
+- **TypeScript** - Type safety e sviluppo robusto
+- **Tailwind CSS + DaisyUI** - Styling e componenti UI
 
-### AI & AWS
+### Database & Vector Search
 
-- **AWS Bedrock** - Platform LLM
-- **Claude 3.7 Sonnet** - Generazione piano
-- **Titan Embeddings V2** - Embedding semantici
-- **pgvector** - Ricerca vettoriale
+- **PostgreSQL** - Database relazionale principale
+- **pgvector** - Estensione per vector similarity search
+- **Drizzle ORM** - Type-safe database operations
 
-### DevTools
+### AI & Machine Learning
 
-- **pnpm** - Package manager
-- **ESLint + Prettier** - Code quality
-- **Drizzle Kit** - Database migrations
+- **AWS Bedrock** - Servizio AI gestito
+- **Claude 3.7 Sonnet** - Modello per generazione piani
+- **Titan Embed Text v2** - Embeddings per semantic search
 
-## 📊 Metriche Performance
+### Infrastructure
 
-### Tempi Tipici (Production)
+- **AWS SDK v3** - Integrazione servizi AWS
+- **pnpm** - Package manager performante
 
-- **FASE 2** (Analisi Storica): ~800ms
-- **FASE 3** (Retrieval Ibrido): ~1200ms
-- **FASE 4** (Contesto RAG): ~100ms
-- **FASE 5** (Generazione LLM): ~3000ms
-- **TOTALE**: ~5-8 secondi
+## 📁 Struttura del Progetto
 
-### Utilizzo Risorse
-
-- **Token LLM**: 1000-1500 input, 2500-4000 output
-- **Database Queries**: 5-8 query parallele
-- **Memory**: ~50MB per richiesta
-- **Response Size**: 15-25KB JSON
-
-## 🔒 Sicurezza
-
-### Environment Variables
-
-```bash
-# Credenziali sensibili in .env.local (non committare)
-AWS_ACCESS_KEY_ID=***
-AWS_SECRET_ACCESS_KEY=***
-DATABASE_URL=postgresql://***
+```
+cfood/
+├── app/
+│   ├── api/
+│   │   └── genera-piano/
+│   │       └── route.ts           # 🎯 API principale (7 fasi)
+│   ├── layout.tsx                 # Layout applicazione
+│   └── page.tsx                   # Homepage
+├── components/                    # Componenti React riutilizzabili
+├── db/
+│   ├── index.ts                   # Configurazione database
+│   ├── schema.ts                  # Schema Drizzle ORM
+│   └── migrations/                # Migrazioni database
+├── interfaces/
+│   └── database.ts                # Interfacce database
+├── lib/
+│   ├── analisi-storica.ts         # Utilities analisi dati
+│   └── validation.ts              # Validazione input
+├── prompts/
+│   ├── index.ts                   # Sistema prompt management
+│   ├── piano-alimentare.md        # Template generazione piani
+│   └── analisi-nutrizionale.md    # Template calcolo nutrizionale
+├── types/
+│   └── genera-piano.ts            # Interfacce TypeScript complete
+└── public/                        # Assets statici
 ```
 
-### Validazione Input
+## 🗃️ Schema Database
 
-- Range `periodo_giorni`: 7-365
-- Sanitizzazione array `preferenze`/`esclusioni`
-- Rate limiting su endpoint (produzione)
+### Tabelle Principali
 
-### Database Security
+**piani_alimentari**
 
-- Connection pooling configurato
-- SSL/TLS obbligatorio (produzione)
-- Query parametrizzate (prevenzione SQL injection)
+- Piano alimentare principale con metadati
+- Collegamento a dettagli nutrizionali e pasti
 
-## 🐛 Debugging
+**pasti**
 
-### Logging Strutturato
+- Catalogo completo pasti con descrizioni
+- Valori nutrizionali e embeddings 1024-dim
+- Supporto per semantic search
+
+**dettagli_nutrizionali_giornalieri**
+
+- Aggregazioni nutrizionali per giorno
+- Totali calorie, proteine, carboidrati, grassi
+
+**piani_pasti**
+
+- Relazioni many-to-many piano ↔ pasti
+- Organizzazione per giorno settimana e ordine
+
+## 🚀 API Endpoint Principale
+
+### `POST /api/genera-piano`
+
+**Input:**
 
 ```typescript
-console.log("🤖 Chiamata Bedrock - Modello: claude-3-7-sonnet");
-console.log("📝 Prompt: 3840 caratteri (960 token stimati)");
-console.log("✅ Piano generato con successo in 4250ms");
-```
-
-### Health Checks
-
-```bash
-# Test connessione database
-GET /api/health
-
-# Response attesa:
 {
-  "status": "healthy",
-  "services": {
-    "database": "ok",
-    "bedrock": "ok"
-  }
+  "periodo_giorni": 7,
+  "preferenze": ["pasta", "verdure", "pesce"],
+  "esclusioni": ["carne rossa", "latticini"]
 }
 ```
 
-## 🔄 Pipeline CI/CD
+**Output Completo:**
 
-### Development Workflow
+```typescript
+{
+  "success": true,
+  "timestamp": "2025-10-06T...",
+  "piano_id": 42,                          // ID reale dal database
+  "fase_completata": "FASE_7_AGGREGAZIONE_E_SALVATAGGIO_COMPLETATO",
 
-```bash
-# Local development
-pnpm dev              # Start con hot reload
-pnpm test             # Run test suite
-pnpm lint             # Code quality check
-pnpm build            # Production build
+  "summary": {
+    "message": "✅ Pipeline completa: Piano alimentare generato, calcolato e salvato!",
+    "fasi_completate": ["FASE_2", "FASE_3", "FASE_4", "FASE_5", "FASE_6", "FASE_7"],
+    "statistiche_elaborazione": {
+      "piano_id_database": 42,
+      "nuovi_pasti_creati": 15,
+      "relazioni_piano_pasti_create": 21,
+      "embeddings_generati": 15,
+      // ... altre statistiche
+    }
+  },
+
+  "analisi_storica": { /* Dati FASE 2 */ },
+  "pasti_raccomandati": [ /* Dati FASE 3 */ ],
+  "piano_generato": { /* Dati FASE 5 */ },
+  "valori_nutrizionali": { /* Dati FASE 6 */ }
+}
 ```
 
-### Database Migrations
+## ⚙️ Configurazione Ambiente
 
 ```bash
-pnpm drizzle-kit generate    # Genera migration
-pnpm drizzle-kit migrate     # Applica migration
-pnpm drizzle-kit studio     # Database explorer
+# AWS Bedrock
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_BEDROCK_MODEL=anthropic.claude-3-7-sonnet-20241022-v1:0
+
+# Database PostgreSQL con pgvector
+DATABASE_URL=postgresql://user:password@localhost:5432/cfood
+
+# Next.js
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-## 📈 Monitoraggio
+## 🧪 Comandi di Sviluppo
 
-### Metriche Chiave
+```bash
+# Installazione dipendenze
+pnpm install
 
-- **Success Rate**: Piani generati con successo / Richieste totali
-- **Latency P95**: Tempo risposta 95° percentile
-- **Token Usage**: Costi AWS Bedrock
-- **Error Rate**: Errori per tipo (DB, AWS, validation)
+# Sviluppo locale
+pnpm dev
 
-### Alerts Raccomandati
+# Build produzione
+pnpm build
 
-- Latency > 10 secondi
-- Error rate > 5%
-- Database connection failures
-- AWS Bedrock rate limiting
+# Verifica types e linting
+pnpm lint
 
-## 🔮 Roadmap Future
+# Database migrations
+pnpm db:migrate
+```
 
-### Fase 6 - Validazione Nutrizionale
+## 🔬 Funzionalità Avanzate
 
-- [ ] Calcolo preciso macronutrienti
-- [ ] Verifica bilanciamento giornaliero
-- [ ] Suggerimenti correzioni automatiche
+### Sistema Prompt Esternalizzato
 
-### Fase 7 - Salvataggio Database
+- Template markdown configurabili in `/prompts/`
+- Separazione logic/content per manutenibilità
+- Supporto variabili dinamiche
 
-- [ ] Persistenza piani generati
-- [ ] Storico versioni
-- [ ] Analytics utilizzo
+### Retrieval Ibrido Intelligente
 
-### Fase 8 - Personalizzazione Avanzata
+- Combina score frequenza + similarità semantica
+- Pesi configurabili per bilanciamento risultati
+- Fallback su dati storici se vector search fallisce
 
-- [ ] Machine learning preferences
-- [ ] Feedback loop qualità
-- [ ] Integrazione wearables
+### Calcolo Nutrizionale Multi-Livello
 
-### Ottimizzazioni
+- Analisi per singolo pasto con AI
+- Aggregazione giornaliera e settimanale
+- Confronto con linee guida nutrizionali
+- Sistema fallback con valori predefiniti
 
-- [ ] Cache intelligent embeddings
-- [ ] Response streaming
-- [ ] Background job processing
-- [ ] Multi-region deployment
+### Vector Search & Embeddings
 
-## 🤝 Contributi
+- Embeddings 1024-dimensionali per semantic search
+- Integrazione pgvector per performance ottimali
+- Cosine similarity per matching intelligente
 
-### Code Style
+## 🎯 Prossimi Sviluppi
 
-- **TypeScript strict mode** obbligatorio
-- **ESLint** configurazione extended
-- **Conventional Commits** per versioning
-- **Test coverage** >80% per nuove feature
+- [ ] **Dashboard Amministrativa** - Gestione piani e analytics
+- [ ] **API Utente Finale** - Interfaccia consumo piani
+- [ ] **Cache Layer** - Redis per performance
+- [ ] **Monitoring** - Metriche AI calls e performance
+- [ ] **A/B Testing** - Ottimizzazione prompt e parametri
 
-### Pull Request Process
+## 📈 Metriche di Performance
 
-1. Fork repository
-2. Feature branch: `feature/descrizione`
-3. Test completi locali
-4. Pull request con descrizione dettagliata
-5. Code review required
-6. Merge dopo approvazione
+### Tempi di Elaborazione Tipici
 
-## 📞 Supporto
+- **FASE 2-4**: ~2-3 secondi (analisi + retrieval)
+- **FASE 5**: ~8-12 secondi (generazione AI piano)
+- **FASE 6**: ~15-25 secondi (calcolo nutrizionale)
+- **FASE 7**: ~3-5 secondi (salvataggio + embeddings)
+- **TOTALE**: ~30-45 secondi per piano completo
 
-### Documenti di Riferimento
+### Utilizzo Risorse AWS
 
-- [API_GENERA_PIANO.md](./API_GENERA_PIANO.md) - API completa
-- [SETUP_GUIDE.md](./SETUP_GUIDE.md) - Setup e troubleshooting
-- [FASI_PROCESSO_DETTAGLIATE.md](./FASI_PROCESSO_DETTAGLIATE.md) - Implementation details
-
-### Contatti Team
-
-- **Backend**: Problemi database, AWS, API
-- **AI/ML**: Tuning prompt, retrieval, embeddings
-- **DevOps**: Deploy, monitoring, infrastructure
+- **Claude 3.7 Sonnet**: ~8 chiamate per piano (1 piano + 7 analisi nutrizionali)
+- **Titan Embed**: ~15 chiamate per nuovi pasti
+- **Token stimati**: ~25k input + ~8k output per piano
 
 ---
 
-## 📋 Checklist Progetto
+## 👥 Sviluppo e Contributi
 
-### ✅ Core Features Completate
+Questo progetto implementa una architettura modulare e scalabile per la generazione automatica di piani alimentari. Ogni fase è indipendente e testabile, permettendo iterazioni rapide e miglioramenti continui.
 
-- [x] **FASE 2**: Analisi storica completa
-- [x] **FASE 3**: Retrieval ibrido funzionante
-- [x] **FASE 4**: Contesto RAG ottimizzato
-- [x] **FASE 5**: Generazione LLM stabile
-- [x] **Documentazione**: Completa e dettagliata
-- [x] **Testing**: Endpoint validato
-- [x] **Error Handling**: Robusto e informativo
-
-### 🔄 In Development
-
-- [ ] **Performance tuning**: Caching layer
-- [ ] **Monitoring**: Metrics dashboard
-- [ ] **Health checks**: Automated testing
-
-### 📅 Roadmap Q4 2025
-
-- [ ] **FASE 6**: Validazione nutrizionale
-- [ ] **FASE 7**: Persistenza database
-- [ ] **UI Components**: Frontend integration
-- [ ] **Production deploy**: AWS infrastructure
-
----
-
-**Progetto**: CFood Piano Alimentare API  
-**Versione**: 1.0.0  
-**Stack**: Next.js 14 + TypeScript + AWS Bedrock + PostgreSQL  
-**Stato**: ✅ Core pipeline completata  
-**Ultimo Update**: Ottobre 2025
-
-🎯 **Obiettivo**: Generazione intelligente di piani alimentari personalizzati tramite AI avanzata e analisi dati storici.
+**Sviluppato con ❤️ utilizzando Next.js 14, AWS Bedrock, e PostgreSQL + pgvector**

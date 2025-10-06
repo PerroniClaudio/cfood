@@ -17,6 +17,8 @@ import {
   PreferenzaRilevata,
   ValoriNutrizionaliPasto,
   ValoriNutrizionaliGiorno,
+  RisultatoCalcoloNutrizionale,
+  RiepilogoNutrizionaleSettimanale,
 } from "@/types/genera-piano";
 import {
   BedrockRuntimeClient,
@@ -1545,9 +1547,68 @@ export async function POST(request: NextRequest) {
       `✅ Calcolo nutrizionale completato in ${risultatoNutrizionale.statistiche_calcolo.tempo_elaborazione_ms}ms`
     );
 
+    // FASE 7: Aggregazione e Salvataggio
+    console.log("💾 Inizio FASE 7: Aggregazione e salvataggio...");
+
+    // Converto il risultato nutrizionale al formato corretto
+    const risultatoNutrizionaleCompleto: RisultatoCalcoloNutrizionale = {
+      valori_giornalieri: risultatoNutrizionale.valori_giornalieri,
+      riepilogo_settimanale: {
+        calorie_totali_settimana:
+          risultatoNutrizionale.riepilogo_settimanale.calorie_totali_settimana,
+        media_calorie_giorno:
+          risultatoNutrizionale.riepilogo_settimanale.media_calorie_giorno,
+        proteine_totali_settimana_g:
+          risultatoNutrizionale.riepilogo_settimanale.proteine_totali_g,
+        carboidrati_totali_settimana_g:
+          risultatoNutrizionale.riepilogo_settimanale.carboidrati_totali_g,
+        grassi_totali_settimana_g:
+          risultatoNutrizionale.riepilogo_settimanale.grassi_totali_g,
+        distribuzione_macro_media:
+          risultatoNutrizionale.riepilogo_settimanale.distribuzione_macro_media,
+        confronto_con_linee_guida: {
+          calorie_range_consigliato: { min: 1800, max: 2500 },
+          proteine_perc_consigliata: { min: 10, max: 35 },
+          carboidrati_perc_consigliata: { min: 45, max: 65 },
+          grassi_perc_consigliata: { min: 20, max: 35 },
+          valutazione_bilanciamento: valutaBilanciamento(
+            risultatoNutrizionale.riepilogo_settimanale.media_calorie_giorno,
+            risultatoNutrizionale.riepilogo_settimanale
+              .distribuzione_macro_media
+          ),
+        },
+      },
+      statistiche_calcolo: {
+        pasti_totali_analizzati:
+          risultatoNutrizionale.statistiche_calcolo.pasti_totali,
+        pasti_calcolati_ai:
+          risultatoNutrizionale.statistiche_calcolo.pasti_calcolati_ai,
+        pasti_stimati_fallback:
+          risultatoNutrizionale.statistiche_calcolo.pasti_stimati_fallback,
+        pasti_con_errore:
+          risultatoNutrizionale.statistiche_calcolo.pasti_con_errore,
+        tempo_elaborazione_ms:
+          risultatoNutrizionale.statistiche_calcolo.tempo_elaborazione_ms,
+        modello_ai_utilizzato:
+          risultatoGenerazione.metadata_chiamata.modello_utilizzato,
+        chiamate_ai_totali:
+          risultatoNutrizionale.statistiche_calcolo.pasti_calcolati_ai + 1, // +1 per la chiamata piano
+      },
+    };
+
+    const risultatoFase7 = await eseguiFase7AggregazioneESalvataggio(
+      risultatoGenerazione.piano_generato,
+      risultatoNutrizionaleCompleto,
+      analisiStorica,
+      periodo_giorni
+    );
+    console.log(
+      `✅ FASE 7 completata: Piano ID ${risultatoFase7.piano_id} salvato nel database`
+    );
+
     // Preparazione dati per risposta strutturata
     const timestamp = new Date().toISOString();
-    const pianoId = Math.random().toString(36).substr(2, 9);
+    const pianoId = risultatoFase7.piano_id; // Usa l'ID reale dal database
 
     // Conteggi e statistiche per il summary
     const totalePastiRaccomandati = pastiRaccomandati.length;
@@ -1564,7 +1625,7 @@ export async function POST(request: NextRequest) {
       success: true,
       timestamp,
       piano_id: pianoId,
-      fase_completata: "FASE_6_CALCOLO_NUTRIZIONALE_COMPLETATO",
+      fase_completata: "FASE_7_AGGREGAZIONE_E_SALVATAGGIO_COMPLETATO",
 
       // === PARAMETRI RICHIESTA ===
       richiesta: {
@@ -1582,13 +1643,14 @@ export async function POST(request: NextRequest) {
       // === SUMMARY ESECUZIONE ===
       summary: {
         message:
-          "✅ Pipeline completa: Piano alimentare con calcolo nutrizionale completato!",
+          "✅ Pipeline completa: Piano alimentare generato, calcolato e salvato nel database!",
         fasi_completate: [
           "FASE_2: Analisi storica dei dati",
           "FASE_3: Retrieval ibrido (frequenza + similarità)",
           "FASE_4: Costruzione contesto RAG",
           "FASE_5: Generazione piano con Bedrock",
           "FASE_6: Calcolo nutrizionale a posteriori",
+          "FASE_7: Aggregazione e salvataggio nel database",
         ],
         statistiche_elaborazione: {
           piani_storici_analizzati:
@@ -1601,6 +1663,11 @@ export async function POST(request: NextRequest) {
           pasti_raccomandati_totali: totalePastiRaccomandati,
           pasti_con_score_similarita: pastiConSimilarita,
           pasti_con_dati_frequenza: pastiConFrequenza,
+          // Nuove statistiche FASE 7
+          piano_id_database: risultatoFase7.piano_id,
+          nuovi_pasti_creati: risultatoFase7.nuovi_pasti_creati,
+          relazioni_piano_pasti_create: risultatoFase7.relazioni_create,
+          embeddings_generati: risultatoFase7.embeddings_generati,
           // Nuove statistiche FASE 6
           pasti_analizzati_nutrizionalmente:
             risultatoNutrizionale.statistiche_calcolo.pasti_totali,
@@ -1772,4 +1839,654 @@ export async function GET() {
     { error: "Metodo non supportato. Usa POST." },
     { status: 405 }
   );
+}
+
+// ==========================================
+// 🔥 FASE 7: AGGREGAZIONE E SALVATAGGIO
+// ==========================================
+
+/**
+ * Calcola i totali nutrizionali giornalieri sommando colazione, pranzo e cena
+ */
+function calcolaTotaliGiornalieri(
+  risultatoNutrizionale: RisultatoCalcoloNutrizionale
+): ValoriNutrizionaliGiorno[] {
+  console.log("🧮 FASE 7.1: Calcolo totali giornalieri...");
+
+  return risultatoNutrizionale.valori_giornalieri.map((giorno) => {
+    const { colazione, pranzo, cena } = giorno.pasti;
+
+    // Somma i valori nutrizionali dei 3 pasti
+    const calorie_totali_kcal =
+      (colazione?.calorie_stimate || 0) +
+      (pranzo?.calorie_stimate || 0) +
+      (cena?.calorie_stimate || 0);
+
+    const proteine_totali_g =
+      (colazione?.proteine_g || 0) +
+      (pranzo?.proteine_g || 0) +
+      (cena?.proteine_g || 0);
+
+    const carboidrati_totali_g =
+      (colazione?.carboidrati_g || 0) +
+      (pranzo?.carboidrati_g || 0) +
+      (cena?.carboidrati_g || 0);
+
+    const grassi_totali_g =
+      (colazione?.grassi_g || 0) +
+      (pranzo?.grassi_g || 0) +
+      (cena?.grassi_g || 0);
+
+    // Calcola percentuali macro (evita divisione per zero)
+    const calorie_da_macro =
+      proteine_totali_g * 4 + carboidrati_totali_g * 4 + grassi_totali_g * 9;
+
+    const percentuali_macro = {
+      proteine_perc:
+        calorie_da_macro > 0
+          ? Math.round(((proteine_totali_g * 4) / calorie_da_macro) * 100)
+          : 0,
+      carboidrati_perc:
+        calorie_da_macro > 0
+          ? Math.round(((carboidrati_totali_g * 4) / calorie_da_macro) * 100)
+          : 0,
+      grassi_perc:
+        calorie_da_macro > 0
+          ? Math.round(((grassi_totali_g * 9) / calorie_da_macro) * 100)
+          : 0,
+    };
+
+    console.log(
+      `📊 ${giorno.giorno_settimana}: ${calorie_totali_kcal}kcal (P:${proteine_totali_g}g C:${carboidrati_totali_g}g G:${grassi_totali_g}g)`
+    );
+
+    return {
+      ...giorno,
+      totali_giorno: {
+        calorie_totali_kcal,
+        proteine_totali_g,
+        carboidrati_totali_g,
+        grassi_totali_g,
+        percentuali_macro,
+      },
+    };
+  });
+}
+
+/**
+ * Calcola i totali settimanali aggregando tutti i 7 giorni
+ */
+function calcolaTotaliSettimanali(
+  giorniConTotali: ValoriNutrizionaliGiorno[]
+): RiepilogoNutrizionaleSettimanale {
+  console.log("📊 FASE 7.2: Calcolo totali settimanali...");
+
+  // Somma tutti i giorni della settimana
+  const calorie_totali_settimana = giorniConTotali.reduce(
+    (sum, giorno) => sum + giorno.totali_giorno.calorie_totali_kcal,
+    0
+  );
+
+  const proteine_totali_settimana_g = giorniConTotali.reduce(
+    (sum, giorno) => sum + giorno.totali_giorno.proteine_totali_g,
+    0
+  );
+
+  const carboidrati_totali_settimana_g = giorniConTotali.reduce(
+    (sum, giorno) => sum + giorno.totali_giorno.carboidrati_totali_g,
+    0
+  );
+
+  const grassi_totali_settimana_g = giorniConTotali.reduce(
+    (sum, giorno) => sum + giorno.totali_giorno.grassi_totali_g,
+    0
+  );
+
+  // Medie giornaliere
+  const media_calorie_giorno = Math.round(calorie_totali_settimana / 7);
+
+  // Distribuzione macro media settimanale
+  const calorie_totali_da_macro =
+    proteine_totali_settimana_g * 4 +
+    carboidrati_totali_settimana_g * 4 +
+    grassi_totali_settimana_g * 9;
+
+  const distribuzione_macro_media = {
+    proteine_perc:
+      calorie_totali_da_macro > 0
+        ? Math.round(
+            ((proteine_totali_settimana_g * 4) / calorie_totali_da_macro) * 100
+          )
+        : 0,
+    carboidrati_perc:
+      calorie_totali_da_macro > 0
+        ? Math.round(
+            ((carboidrati_totali_settimana_g * 4) / calorie_totali_da_macro) *
+              100
+          )
+        : 0,
+    grassi_perc:
+      calorie_totali_da_macro > 0
+        ? Math.round(
+            ((grassi_totali_settimana_g * 9) / calorie_totali_da_macro) * 100
+          )
+        : 0,
+  };
+
+  // Linee guida nutrizionali standard (adulto medio)
+  const confronto_con_linee_guida = {
+    calorie_range_consigliato: { min: 1800, max: 2500 },
+    proteine_perc_consigliata: { min: 10, max: 35 },
+    carboidrati_perc_consigliata: { min: 45, max: 65 },
+    grassi_perc_consigliata: { min: 20, max: 35 },
+    valutazione_bilanciamento: valutaBilanciamento(
+      media_calorie_giorno,
+      distribuzione_macro_media
+    ),
+  };
+
+  console.log(
+    `📈 Totali settimanali: ${calorie_totali_settimana}kcal (media: ${media_calorie_giorno}/giorno)`
+  );
+  console.log(
+    `🥗 Macro: P:${distribuzione_macro_media.proteine_perc}% C:${distribuzione_macro_media.carboidrati_perc}% G:${distribuzione_macro_media.grassi_perc}%`
+  );
+
+  return {
+    calorie_totali_settimana,
+    media_calorie_giorno,
+    proteine_totali_settimana_g,
+    carboidrati_totali_settimana_g,
+    grassi_totali_settimana_g,
+    distribuzione_macro_media,
+    confronto_con_linee_guida,
+  };
+}
+
+/**
+ * Valuta il bilanciamento nutrizionale secondo le linee guida
+ */
+function valutaBilanciamento(
+  calorieGiornaliere: number,
+  macro: {
+    proteine_perc: number;
+    carboidrati_perc: number;
+    grassi_perc: number;
+  }
+): "ottimale" | "accettabile" | "da_migliorare" {
+  // Controlli per valutazione ottimale
+  const calorieOk = calorieGiornaliere >= 1800 && calorieGiornaliere <= 2500;
+  const proteineOk = macro.proteine_perc >= 15 && macro.proteine_perc <= 30;
+  const carboidratiOk =
+    macro.carboidrati_perc >= 45 && macro.carboidrati_perc <= 65;
+  const grassiOk = macro.grassi_perc >= 20 && macro.grassi_perc <= 35;
+
+  if (calorieOk && proteineOk && carboidratiOk && grassiOk) {
+    return "ottimale";
+  }
+
+  // Controlli per valutazione accettabile (range più ampio)
+  const calorieAccettabili =
+    calorieGiornaliere >= 1600 && calorieGiornaliere <= 2800;
+  const proteineAccettabili =
+    macro.proteine_perc >= 10 && macro.proteine_perc <= 35;
+  const carboidratiAccettabili =
+    macro.carboidrati_perc >= 40 && macro.carboidrati_perc <= 70;
+  const grassiAccettabili = macro.grassi_perc >= 15 && macro.grassi_perc <= 40;
+
+  if (
+    calorieAccettabili &&
+    proteineAccettabili &&
+    carboidratiAccettabili &&
+    grassiAccettabili
+  ) {
+    return "accettabile";
+  }
+
+  return "da_migliorare";
+}
+
+/**
+ * Salva il piano alimentare principale nel database
+ */
+async function salvaPianoPrincipale(
+  periodoGiorni: number,
+  analisiStorica: AnalisiStorica
+): Promise<number> {
+  console.log("💾 FASE 7.3: Salvataggio piano principale...");
+
+  // Genera nome descrittivo basato sui dati storici
+  const dataInizio =
+    analisiStorica.piani_recenti.length > 0
+      ? analisiStorica.piani_recenti[0].data_creazione
+      : new Date().toISOString().split("T")[0];
+
+  const nomePiano = `Piano Settimanale - Basato su Storico ${dataInizio}`;
+
+  const descrizione = `Piano alimentare di ${periodoGiorni} giorni generato automaticamente dall'AI basandosi su ${
+    analisiStorica.statistiche_generali.totale_piani
+  } piani precedenti. Media calorica storica: ${Math.round(
+    analisiStorica.statistiche_generali.media_calorie_giornaliere
+  )}kcal/giorno.`;
+
+  try {
+    const [pianoCeato] = await db
+      .insert(pianiAlimentari)
+      .values({
+        nome: nomePiano,
+        descrizione: descrizione,
+        autore: "Sistema AI",
+      })
+      .returning({ id: pianiAlimentari.id });
+
+    console.log(`✅ Piano creato con ID: ${pianoCeato.id}`);
+    return pianoCeato.id;
+  } catch (error) {
+    console.error("❌ Errore salvataggio piano:", error);
+    throw new Error(`Errore nel salvataggio del piano: ${error}`);
+  }
+}
+
+/**
+ * Salva i dettagli nutrizionali giornalieri nel database
+ */
+async function salvaDettagliNutrizionaliGiornalieri(
+  pianoId: number,
+  giorniConTotali: ValoriNutrizionaliGiorno[]
+): Promise<void> {
+  console.log("📊 FASE 7.4: Salvataggio dettagli nutrizionali giornalieri...");
+
+  const dettagliDaInserire = giorniConTotali.map((giorno) => ({
+    pianoId,
+    giornoSettimana: giorno.giorno_settimana,
+    proteineTotaliG: giorno.totali_giorno.proteine_totali_g,
+    carboidratiTotaliG: giorno.totali_giorno.carboidrati_totali_g,
+    grassiTotaliG: giorno.totali_giorno.grassi_totali_g,
+    calorieTotaliKcal: giorno.totali_giorno.calorie_totali_kcal,
+  }));
+
+  try {
+    await db.insert(dettagliNutrizionaliGiornalieri).values(dettagliDaInserire);
+    console.log(
+      `✅ Salvati ${dettagliDaInserire.length} giorni di dettagli nutrizionali`
+    );
+  } catch (error) {
+    console.error("❌ Errore salvataggio dettagli nutrizionali:", error);
+    throw new Error(
+      `Errore nel salvataggio dei dettagli nutrizionali: ${error}`
+    );
+  }
+}
+
+/**
+ * Identifica e salva i nuovi pasti creati dall'AI
+ */
+async function salvaNuoviPastiGenerati(
+  pianoGenerato: Record<string, unknown>,
+  risultatoNutrizionale: RisultatoCalcoloNutrizionale
+): Promise<{ nuoviPastiCreati: number; mappaIdPasti: Map<string, number> }> {
+  console.log("🍽️ FASE 7.5: Identificazione e salvataggio nuovi pasti...");
+
+  const mappaIdPasti = new Map<string, number>();
+  let nuoviPastiCreati = 0;
+
+  try {
+    // Estrai tutte le descrizioni uniche dal piano
+    const descrizioniPasti = estraiDescrizioniPasti(pianoGenerato);
+    const descrizioniUniche = new Set<string>();
+
+    // Raccogli tutte le descrizioni uniche
+    descrizioniPasti.forEach((giorno) => {
+      if (giorno.pasti.colazione) descrizioniUniche.add(giorno.pasti.colazione);
+      if (giorno.pasti.pranzo) descrizioniUniche.add(giorno.pasti.pranzo);
+      if (giorno.pasti.cena) descrizioniUniche.add(giorno.pasti.cena);
+    });
+
+    console.log(
+      `🔍 Trovate ${descrizioniUniche.size} descrizioni uniche di pasti`
+    );
+
+    // Verifica esistenza nel database
+    const descrizioniArray = Array.from(descrizioniUniche);
+    const pastiEsistenti = await db
+      .select({
+        id: pasti.id,
+        descrizione: pasti.descrizioneDettagliata,
+      })
+      .from(pasti)
+      .where(inArray(pasti.descrizioneDettagliata, descrizioniArray));
+
+    const mappaEsistenti = new Map(
+      pastiEsistenti.map((p) => [p.descrizione, p.id])
+    );
+
+    console.log(`📊 ${pastiEsistenti.length} pasti già esistenti nel database`);
+
+    // Trova nuovi pasti da creare
+    const nuoveDescrizioni = descrizioniArray.filter(
+      (desc) => !mappaEsistenti.has(desc)
+    );
+
+    console.log(`🆕 ${nuoveDescrizioni.length} nuovi pasti da creare`);
+
+    // Crea i nuovi pasti con valori nutrizionali
+    for (const descrizione of nuoveDescrizioni) {
+      // Trova i valori nutrizionali dal risultato FASE 6
+      const valoriNutrizionali = trovaNutrizionaliPerDescrizione(
+        descrizione,
+        risultatoNutrizionale
+      );
+
+      if (!valoriNutrizionali) {
+        console.warn(`⚠️ Valori nutrizionali non trovati per: ${descrizione}`);
+        continue;
+      }
+
+      // INSERT nuovo pasto
+      const [pastoCreato] = await db
+        .insert(pasti)
+        .values({
+          tipoPasto: valoriNutrizionali.tipo_pasto,
+          descrizioneDettagliata: descrizione,
+          noteAggiuntive: `Pasto generato automaticamente dall'AI in data ${
+            new Date().toISOString().split("T")[0]
+          }`,
+          calorieStimate: valoriNutrizionali.calorie_stimate,
+          proteineG: valoriNutrizionali.proteine_g,
+          carboidratiG: valoriNutrizionali.carboidrati_g,
+          grassiG: valoriNutrizionali.grassi_g,
+          // embedding verrà aggiunto in seguito
+        })
+        .returning({ id: pasti.id });
+
+      mappaIdPasti.set(descrizione, pastoCreato.id);
+      nuoviPastiCreati++;
+
+      console.log(
+        `✅ Pasto creato ID ${pastoCreato.id}: ${descrizione.substring(
+          0,
+          60
+        )}...`
+      );
+    }
+
+    // Aggiungi anche i pasti esistenti alla mappa
+    pastiEsistenti.forEach((pasto) => {
+      mappaIdPasti.set(pasto.descrizione, pasto.id);
+    });
+
+    console.log(`🍽️ Totale pasti mappati: ${mappaIdPasti.size}`);
+
+    return { nuoviPastiCreati, mappaIdPasti };
+  } catch (error) {
+    console.error("❌ Errore salvataggio nuovi pasti:", error);
+    throw new Error(`Errore nel salvataggio dei nuovi pasti: ${error}`);
+  }
+}
+
+/**
+ * Trova i valori nutrizionali per una specifica descrizione di pasto
+ */
+function trovaNutrizionaliPerDescrizione(
+  descrizione: string,
+  risultatoNutrizionale: RisultatoCalcoloNutrizionale
+): ValoriNutrizionaliPasto | null {
+  for (const giorno of risultatoNutrizionale.valori_giornalieri) {
+    for (const [, valori] of Object.entries(giorno.pasti)) {
+      if (valori && valori.descrizione_pasto === descrizione) {
+        return valori;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Crea le relazioni tra piano e pasti nella tabella piani_pasti
+ */
+async function creaRelazioniPianoPasti(
+  pianoId: number,
+  pianoGenerato: Record<string, unknown>,
+  mappaIdPasti: Map<string, number>
+): Promise<void> {
+  console.log("🔗 FASE 7.6: Creazione relazioni piano-pasti...");
+
+  const relazioniDaInserire: Array<{
+    pianoId: number;
+    pastoId: number;
+    giornoSettimana: string;
+    ordineNelGiorno: number;
+  }> = [];
+
+  try {
+    // Estrai descrizioni pasti dal piano
+    const descrizioniPasti = estraiDescrizioniPasti(pianoGenerato);
+
+    // Mappa tipi pasto all'ordine nel giorno
+    const ordiniPasti = {
+      colazione: 1,
+      pranzo: 2,
+      cena: 3,
+    };
+
+    // Mappa numeri giorni ai nomi
+    const nomiGiorni = [
+      "Lunedì",
+      "Martedì",
+      "Mercoledì",
+      "Giovedì",
+      "Venerdì",
+      "Sabato",
+      "Domenica",
+    ];
+
+    // Per ogni giorno del piano
+    for (const giorno of descrizioniPasti) {
+      const nomeGiorno = nomiGiorni[giorno.giorno - 1];
+
+      // Per ogni tipo di pasto nel giorno
+      for (const [tipoPasto, descrizione] of Object.entries(giorno.pasti)) {
+        if (descrizione) {
+          const pastoId = mappaIdPasti.get(descrizione);
+
+          if (pastoId) {
+            relazioniDaInserire.push({
+              pianoId,
+              pastoId,
+              giornoSettimana: nomeGiorno,
+              ordineNelGiorno:
+                ordiniPasti[tipoPasto as keyof typeof ordiniPasti],
+            });
+          } else {
+            console.warn(`⚠️ ID pasto non trovato per: ${descrizione}`);
+          }
+        }
+      }
+    }
+
+    console.log(
+      `🔗 Creando ${relazioniDaInserire.length} relazioni piano-pasti`
+    );
+
+    // INSERT delle relazioni
+    if (relazioniDaInserire.length > 0) {
+      await db.insert(pianiPasti).values(relazioniDaInserire);
+      console.log(`✅ Relazioni piano-pasti create con successo`);
+    }
+  } catch (error) {
+    console.error("❌ Errore creazione relazioni piano-pasti:", error);
+    throw new Error(
+      `Errore nella creazione delle relazioni piano-pasti: ${error}`
+    );
+  }
+}
+
+/**
+ * Genera embedding per un singolo pasto usando lo stesso modello esistente
+ */
+async function generaEmbeddingPasto(descrizione: string): Promise<number[]> {
+  try {
+    const bedrockClient = new BedrockRuntimeClient({
+      region: process.env.AWS_REGION || "us-east-1",
+    });
+
+    const body = JSON.stringify({
+      inputText: descrizione,
+      dimensions: 1024,
+      normalize: true,
+    });
+
+    const command = new InvokeModelCommand({
+      body,
+      modelId: "amazon.titan-embed-text-v2:0",
+      contentType: "application/json",
+    });
+
+    const response = await bedrockClient.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+    return responseBody.embedding;
+  } catch (error) {
+    console.error("❌ Errore generazione embedding pasto:", error);
+    throw new Error(`Errore nella generazione embedding: ${error}`);
+  }
+}
+
+/**
+ * Genera embeddings per tutti i nuovi pasti creati
+ */
+async function generaEmbeddingsNuoviPasti(
+  mappaIdPasti: Map<string, number>,
+  nuoviPastiCreati: number
+): Promise<void> {
+  console.log("🧠 FASE 7.7: Generazione embeddings per nuovi pasti...");
+
+  if (nuoviPastiCreati === 0) {
+    console.log("ℹ️ Nessun nuovo pasto da processare per embeddings");
+    return;
+  }
+
+  try {
+    let embeddingsGenerati = 0;
+
+    // Ottieni tutti i pasti appena creati (senza embedding)
+    const pastiSenzaEmbedding = await db
+      .select({
+        id: pasti.id,
+        descrizione: pasti.descrizioneDettagliata,
+      })
+      .from(pasti)
+      .where(sql`${pasti.embedding} IS NULL`)
+      .limit(nuoviPastiCreati + 10); // Margine di sicurezza
+
+    console.log(
+      `🔍 Trovati ${pastiSenzaEmbedding.length} pasti senza embedding`
+    );
+
+    // Genera embedding per ogni pasto
+    for (const pasto of pastiSenzaEmbedding) {
+      // Verifica che sia uno dei pasti appena creati
+      if (mappaIdPasti.has(pasto.descrizione)) {
+        console.log(`🧠 Generando embedding per pasto ID ${pasto.id}...`);
+
+        try {
+          const embedding = await generaEmbeddingPasto(pasto.descrizione);
+
+          // UPDATE del pasto con il nuovo embedding
+          await db
+            .update(pasti)
+            .set({
+              embedding: embedding,
+            })
+            .where(eq(pasti.id, pasto.id));
+
+          embeddingsGenerati++;
+          console.log(`✅ Embedding salvato per pasto ID ${pasto.id}`);
+
+          // Delay per evitare rate limiting su Bedrock
+          if (embeddingsGenerati < pastiSenzaEmbedding.length) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        } catch (embeddingError) {
+          console.error(
+            `❌ Errore embedding pasto ID ${pasto.id}:`,
+            embeddingError
+          );
+          // Continua con il prossimo pasto anche in caso di errore
+        }
+      }
+    }
+
+    console.log(
+      `🎯 Completato: ${embeddingsGenerati} embeddings generati e salvati`
+    );
+  } catch (error) {
+    console.error("❌ Errore generale generazione embeddings:", error);
+    throw new Error(`Errore nella generazione degli embeddings: ${error}`);
+  }
+}
+
+/**
+ * Funzione orchestratore principale della FASE 7: Aggregazione e Salvataggio
+ */
+async function eseguiFase7AggregazioneESalvataggio(
+  pianoGenerato: Record<string, unknown>,
+  risultatoNutrizionale: RisultatoCalcoloNutrizionale,
+  analisiStorica: AnalisiStorica,
+  periodoGiorni: number
+): Promise<{
+  piano_id: number;
+  nuovi_pasti_creati: number;
+  relazioni_create: number;
+  embeddings_generati: number;
+  riepilogo_settimanale: RiepilogoNutrizionaleSettimanale;
+}> {
+  console.log("🏁 INIZIO FASE 7: Aggregazione e Salvataggio...");
+  const startTime = Date.now();
+
+  try {
+    // 7.1 & 7.2: Calcola totali giornalieri e settimanali
+    const giorniConTotali = calcolaTotaliGiornalieri(risultatoNutrizionale);
+    const riepilogoSettimanale = calcolaTotaliSettimanali(giorniConTotali);
+
+    // 7.3: Salva piano principale
+    const pianoId = await salvaPianoPrincipale(periodoGiorni, analisiStorica);
+
+    // 7.4: Salva dettagli nutrizionali giornalieri
+    await salvaDettagliNutrizionaliGiornalieri(pianoId, giorniConTotali);
+
+    // 7.5: Salva nuovi pasti generati dall'AI
+    const { nuoviPastiCreati, mappaIdPasti } = await salvaNuoviPastiGenerati(
+      pianoGenerato,
+      risultatoNutrizionale
+    );
+
+    // 7.6: Crea relazioni piano-pasti
+    await creaRelazioniPianoPasti(pianoId, pianoGenerato, mappaIdPasti);
+
+    // 7.7 & 7.8: Genera embeddings per nuovi pasti
+    await generaEmbeddingsNuoviPasti(mappaIdPasti, nuoviPastiCreati);
+
+    const endTime = Date.now();
+    const relazioni_create = mappaIdPasti.size * 7; // Stima: ogni pasto x 7 giorni
+
+    console.log(`🎉 FASE 7 COMPLETATA in ${endTime - startTime}ms`);
+    console.log(`📋 Piano ID: ${pianoId}`);
+    console.log(`🍽️ Nuovi pasti: ${nuoviPastiCreati}`);
+    console.log(`🔗 Relazioni: ${relazioni_create}`);
+    console.log(`🧠 Embeddings: ${nuoviPastiCreati}`);
+
+    return {
+      piano_id: pianoId,
+      nuovi_pasti_creati: nuoviPastiCreati,
+      relazioni_create,
+      embeddings_generati: nuoviPastiCreati,
+      riepilogo_settimanale: riepilogoSettimanale,
+    };
+  } catch (error) {
+    console.error("❌ ERRORE FASE 7:", error);
+    throw new Error(
+      `Errore nella FASE 7 - Aggregazione e Salvataggio: ${error}`
+    );
+  }
 }
