@@ -14,15 +14,18 @@ Crea un piano alimentare di 7 giorni bilanciato e personalizzato.
 4. SEGUI preferenze utente: {{preferenze}}
 5. EVITA assolutamente: {{esclusioni}}
 6. MANTIENI familiarità con i pasti storici più frequenti
-7. INTRODUCI 2-3 variazioni creative mantenendo coerenza nutrizionale
+7. INCLUDI SEMPRE:
+   - Grammature precise per ogni ingrediente (mai generiche)
+   - Varianti e sostituzioni possibili
 
 ## 📊 STRUTTURA RICHIESTA
 
 - 7 giorni consecutivi (Lunedì-Domenica)
 - 3 pasti per giorno: Colazione, Pranzo, Cena
-- Descrizioni dettagliate con grammature precise (stile database)
-- Ingredienti specifici e metodi di cottura
-- Calorie stimate per pasto
+- Ingredienti con grammature precise
+- Informazioni nutrizionali complete inclusi micronutrienti
+- Calorie stimate realistiche per pasto
+- Sabato pasto libero
 
 ## 🔄 VARIAZIONI
 
@@ -33,66 +36,40 @@ Crea un piano alimentare di 7 giorni bilanciato e personalizzato.
 
 ## 📝 OUTPUT RICHIESTO
 
-Restituisci ESCLUSIVAMENTE un JSON valido senza markdown o altro testo:
+Restituisci ESCLUSIVAMENTE un JSON valido senza markdown o altro testo NON INCLUDERE '```json\n':
 
-```json
+```
 {
   "piano_alimentare": {
     "durata_giorni": 7,
-    "data_inizio": "{{dataInizio}}",
-    "media_calorica_target": "[INSERISCI_MEDIA_STORICA]",
-    "note_generazione": "Breve spiegazione delle scelte basate sul contesto storico",
     "giorni": [
       {
         "giorno": 1,
         "nome_giorno": "Lunedì",
-        "data": "{{dataInizio}}",
-        "calorie_totali_stimate": 0,
         "pasti": {
           "colazione": {
-            "nome": "Nome piatto preciso",
-            "descrizione_dettagliata": "Descrizione completa con grammature (es: 80g di avena, 200ml latte, 1 banana media 120g)",
-            "ingredienti": [
-              "ingrediente1 (quantità)",
-              "ingrediente2 (quantità)"
-            ],
-            "metodo_preparazione": "Breve descrizione preparazione",
+            "tipo_pasto": "colazione",
+            "descrizione_dettagliata": "Avena integrale 80g, latte parzialmente scremato 200ml, banana 120g, miele 15g, semi di chia 5g",
             "calorie_stimate": 400,
-            "macronutrienti": {
-              "proteine_g": 15,
-              "carboidrati_g": 45,
-              "grassi_g": 12
-            }
+            "proteine_g": 15,
+            "carboidrati_g": 45,
+            "grassi_g": 12
           },
           "pranzo": {
-            "nome": "Nome piatto preciso",
-            "descrizione_dettagliata": "Descrizione completa con grammature",
-            "ingredienti": [
-              "ingrediente1 (quantità)",
-              "ingrediente2 (quantità)"
-            ],
-            "metodo_preparazione": "Breve descrizione preparazione",
-            "calorie_stimate": 600,
-            "macronutrienti": {
-              "proteine_g": 30,
-              "carboidrati_g": 60,
-              "grassi_g": 20
-            }
+            "tipo_pasto": "pranzo",
+            "descrizione_dettagliata": "Petto di pollo 120g, riso basmati integrale 80g, verdure miste 150g, olio extravergine 10ml",
+            "calorie_stimate": 580,
+            "proteine_g": 35,
+            "carboidrati_g": 55,
+            "grassi_g": 18
           },
           "cena": {
-            "nome": "Nome piatto preciso",
-            "descrizione_dettagliata": "Descrizione completa con grammature",
-            "ingredienti": [
-              "ingrediente1 (quantità)",
-              "ingrediente2 (quantità)"
-            ],
-            "metodo_preparazione": "Breve descrizione preparazione",
-            "calorie_stimate": 500,
-            "macronutrienti": {
-              "proteine_g": 25,
-              "carboidrati_g": 40,
-              "grassi_g": 18
-            }
+            "tipo_pasto": "cena",
+            "descrizione_dettagliata": "Salmone 150g, patate dolci 100g, spinaci 200g, olio di lino 8ml",
+            "calorie_stimate": 480,
+            "proteine_g": 28,
+            "carboidrati_g": 35,
+            "grassi_g": 22
           }
         }
       }

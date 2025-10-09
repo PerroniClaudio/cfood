@@ -70,6 +70,34 @@ export function buildPromptAnalisiNutrizionale(
 }
 
 /**
+ * Costruisce il prompt per l'analisi nutrizionale batch di multipli pasti
+ */
+export function buildPromptAnalisiNutrizionaleBatch(
+  pastiDaAnalizzare: Array<{
+    descrizione: string;
+    tipo: "colazione" | "pranzo" | "cena";
+    giorno: number;
+    data: string;
+  }>
+): string {
+  const listaPasti = pastiDaAnalizzare
+    .map(
+      (pasto, index) =>
+        `${index + 1}. ${pasto.tipo.toUpperCase()} (Giorno ${pasto.giorno}): ${
+          pasto.descrizione
+        }`
+    )
+    .join("\n");
+
+  const variables = {
+    num_pasti: pastiDaAnalizzare.length.toString(),
+    lista_pasti: listaPasti,
+  };
+
+  return loadPromptTemplate("analisi-nutrizionale-batch.md", variables);
+}
+
+/**
  * Lista tutti i prompt disponibili nella cartella prompts
  */
 export function getAvailablePrompts(): string[] {

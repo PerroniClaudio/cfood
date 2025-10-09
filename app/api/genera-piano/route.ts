@@ -27,11 +27,85 @@ import {
 import {
   buildPromptPianoAlimentare,
   buildPromptAnalisiNutrizionale,
+  buildPromptAnalisiNutrizionaleBatch,
 } from "@/prompts";
+import fs from "fs";
+import path from "path";
 
 // ================================
 // CONFIGURAZIONE E COSTANTI
 // ================================
+
+// Directory per i log di Bedrock
+const LOGS_DIR = path.join(process.cwd(), "logs");
+
+// Funzioni di utilità per logging Bedrock responses
+function ensureLogsDirectory() {
+  if (!fs.existsSync(LOGS_DIR)) {
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+  }
+}
+
+function saveBedrockResponse(
+  type: "piano" | "nutrizionale_batch" | "nutrizionale_single" | "embedding",
+  sessionId: string,
+  prompt: string,
+  response: string,
+  metadata: Record<string, unknown> = {}
+) {
+  try {
+    ensureLogsDirectory();
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `${timestamp}_${type}_${sessionId.substring(0, 8)}.json`;
+    const logPath = path.join(LOGS_DIR, filename);
+
+    const logData = {
+      timestamp: new Date().toISOString(),
+      type,
+      sessionId,
+      metadata,
+      prompt: prompt.substring(0, 1000) + (prompt.length > 1000 ? "..." : ""), // Truncate for space
+      response,
+    };
+
+    fs.writeFileSync(logPath, JSON.stringify(logData, null, 2));
+    console.log(`💾 Bedrock response saved: ${filename}`);
+  } catch (error) {
+    console.warn(`⚠️ Failed to save Bedrock response:`, error);
+  }
+}
+
+function loadBedrockResponse(
+  type: "piano" | "nutrizionale_batch" | "nutrizionale_single" | "embedding",
+  sessionId: string
+): string | null {
+  try {
+    ensureLogsDirectory();
+
+    const files = fs.readdirSync(LOGS_DIR);
+    const logFile = files
+      .filter((f) => f.includes(`_${type}_${sessionId.substring(0, 8)}`))
+      .sort()
+      .pop(); // Get most recent
+
+    if (logFile) {
+      const logPath = path.join(LOGS_DIR, logFile);
+      const logData = JSON.parse(fs.readFileSync(logPath, "utf-8"));
+      console.log(`📁 Loaded cached Bedrock response: ${logFile}`);
+      return logData.response;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn(`⚠️ Failed to load cached Bedrock response:`, error);
+    return null;
+  }
+}
+
+function generateSessionId(): string {
+  return Date.now().toString() + Math.random().toString(36).substring(2);
+}
 
 // Configurazione pipeline
 const CONFIG = {
@@ -45,7 +119,7 @@ const CONFIG = {
   LIMITE_TOP_PASTI_RETRIEVAL: 8,
 
   // Parametri LLM
-  MAX_TOKENS_OUTPUT: 8000,
+  MAX_TOKENS_OUTPUT: 80000,
   TEMPERATURE_LLM: 0.7,
   TOP_P_LLM: 0.9,
 
@@ -244,13 +318,19 @@ async function getPatternTemporali(
 
   // Mappa dei giorni della settimana
   const mappaGiorni: { [key: string]: { numero: number; nome: string } } = {
+    lunedì: { numero: 1, nome: "Lunedì" },
+    martedì: { numero: 2, nome: "Martedì" },
+    mercoledì: { numero: 3, nome: "Mercoledì" },
+    giovedì: { numero: 4, nome: "Giovedì" },
+    venerdì: { numero: 5, nome: "Venerdì" },
+    sabato: { numero: 6, nome: "Sabato" },
+    domenica: { numero: 0, nome: "Domenica" },
+    // Compatibilità con versioni minuscole esistenti
     lunedi: { numero: 1, nome: "Lunedì" },
     martedi: { numero: 2, nome: "Martedì" },
     mercoledi: { numero: 3, nome: "Mercoledì" },
     giovedi: { numero: 4, nome: "Giovedì" },
     venerdi: { numero: 5, nome: "Venerdì" },
-    sabato: { numero: 6, nome: "Sabato" },
-    domenica: { numero: 0, nome: "Domenica" },
   };
 
   return result.map((row) => {
@@ -906,7 +986,8 @@ function costruisciPromptPianoAlimentare(
 async function generaPianoConBedrock(
   contestoRAG: string,
   preferenze: string[],
-  esclusioni: string[]
+  esclusioni: string[],
+  sessionId: string
 ): Promise<{
   piano_generato: Record<string, unknown>;
   metadata_chiamata: {
@@ -930,41 +1011,62 @@ async function generaPianoConBedrock(
     );
     const tokenInputStimati = Math.ceil(prompt.length / 4);
 
-    console.log(`🤖 Chiamata Bedrock - Modello: ${modello}`);
-    console.log(
-      `📝 Prompt: ${prompt.length} caratteri (${tokenInputStimati} token stimati)`
-    );
+    // 🔄 CACHING: Prova a caricare response cachata
+    console.log(`💾 Checking cache for session ${sessionId}...`);
+    const cachedResponse = loadBedrockResponse("piano", sessionId);
 
-    // Configurazione chiamata Bedrock per Claude
-    // Per Claude 3.7 Sonnet potrebbe essere necessario un inference profile
-    const modelIdToUse = modello;
+    let contenutoRisposta: string;
+    let tokenOutput: number;
 
-    const command = new InvokeModelCommand({
-      modelId: modelIdToUse,
-      body: JSON.stringify({
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: CONFIG.MAX_TOKENS_OUTPUT,
-        temperature: CONFIG.TEMPERATURE_LLM,
-        top_p: CONFIG.TOP_P_LLM,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
-    });
+    if (cachedResponse) {
+      console.log("✅ Using cached Bedrock response!");
+      contenutoRisposta = cachedResponse;
+      tokenOutput = Math.ceil(contenutoRisposta.length / 4);
+    } else {
+      console.log(`🤖 Chiamata Bedrock - Modello: ${modello}`);
+      console.log(
+        `📝 Prompt: ${prompt.length} caratteri (${tokenInputStimati} token stimati)`
+      );
 
-    // Esecuzione chiamata
-    console.log("🚀 Invio richiesta a Bedrock...");
-    const response = await bedrockClient.send(command);
+      // Configurazione chiamata Bedrock per Claude
+      const modelIdToUse = modello;
 
-    // Parsing risposta
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    const contenutoRisposta = responseBody.content[0].text;
-    const tokenOutput =
-      responseBody.usage?.output_tokens ||
-      Math.ceil(contenutoRisposta.length / 4);
+      const command = new InvokeModelCommand({
+        modelId: modelIdToUse,
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: CONFIG.MAX_TOKENS_OUTPUT,
+          temperature: CONFIG.TEMPERATURE_LLM,
+          top_p: CONFIG.TOP_P_LLM,
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        }),
+      });
+
+      // Esecuzione chiamata
+      console.log("🚀 Invio richiesta a Bedrock...");
+      const response = await bedrockClient.send(command);
+
+      // Parsing risposta
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      contenutoRisposta = responseBody.content[0].text;
+      tokenOutput =
+        responseBody.usage?.output_tokens ||
+        Math.ceil(contenutoRisposta.length / 4);
+
+      // 💾 SALVA RESPONSE IN CACHE
+      saveBedrockResponse("piano", sessionId, prompt, contenutoRisposta, {
+        modello,
+        tokenInputStimati,
+        tokenOutput,
+        preferenze,
+        esclusioni,
+      });
+    }
 
     console.log(`✅ Risposta ricevuta: ${contenutoRisposta.length} caratteri`);
     console.log(
@@ -974,11 +1076,43 @@ async function generaPianoConBedrock(
     // Parsing e validazione JSON
     let pianoGenerato;
     try {
-      // Rimuovi eventuali markdown wrapper
-      const jsonString = contenutoRisposta
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
+      // Rimuovi wrapper markdown che Anthropic aggiunge
+      let jsonString = contenutoRisposta.trim();
+
+      console.log(
+        "🔍 Raw response primi 100 char:",
+        jsonString.substring(0, 100)
+      );
+      console.log(
+        "🔍 Raw response ultimi 100 char:",
+        jsonString.substring(jsonString.length - 100)
+      );
+
+      // Rimuovi ```json\n all'inizio
+      if (jsonString.startsWith("```json\n")) {
+        jsonString = jsonString.substring(8); // rimuovi '```json\n'
+      } else if (jsonString.startsWith("```json")) {
+        jsonString = jsonString.substring(7); // rimuovi '```json'
+      }
+
+      // Rimuovi \n``` alla fine
+      if (jsonString.endsWith("\n```")) {
+        jsonString = jsonString.substring(0, jsonString.length - 4); // rimuovi '\n```'
+      } else if (jsonString.endsWith("```")) {
+        jsonString = jsonString.substring(0, jsonString.length - 3); // rimuovi '```'
+      }
+
+      jsonString = jsonString.trim();
+
+      console.log(
+        "🧹 JSON pulito primi 100 char:",
+        jsonString.substring(0, 100)
+      );
+      console.log(
+        "🧹 JSON pulito ultimi 100 char:",
+        jsonString.substring(jsonString.length - 100)
+      );
+
       pianoGenerato = JSON.parse(jsonString);
 
       // Validazione struttura base
@@ -1020,7 +1154,7 @@ async function generaPianoConBedrock(
     return {
       piano_generato: pianoGenerato,
       metadata_chiamata: {
-        modello_utilizzato: modelIdToUse, // Usa il modello effettivamente chiamato
+        modello_utilizzato: modello, // Usa il modello configurato
         modello_configurato: modello, // Modello originale dal .env
         lunghezza_prompt: prompt.length,
         token_input_stimati: tokenInputStimati,
@@ -1040,154 +1174,194 @@ async function generaPianoConBedrock(
 
 // FASE 6: Calcolo Nutrizionale A Posteriori
 
-// Valori nutrizionali di fallback per tipo di pasto
-const FALLBACK_NUTRIZIONALI = {
-  colazione: {
-    calorie_stimate: 350,
-    proteine_g: 15,
-    carboidrati_g: 45,
-    grassi_g: 12,
-  },
-  pranzo: {
-    calorie_stimate: 550,
-    proteine_g: 25,
-    carboidrati_g: 65,
-    grassi_g: 18,
-  },
-  cena: {
-    calorie_stimate: 450,
-    proteine_g: 22,
-    carboidrati_g: 35,
-    grassi_g: 20,
-  },
-} as const;
-
-// Template prompt per analisi nutrizionale
-function costruisciPromptNutrizionale(descrizionePasto: string): string {
-  // Usa il nuovo sistema di prompt da file Markdown
-  return buildPromptAnalisiNutrizionale(descrizionePasto);
+// Funzione per costruire prompt batch per analisi nutrizionale multipli pasti
+function costruisciPromptNutrizionaleBatch(
+  pastiDaAnalizzare: Array<{
+    descrizione: string;
+    tipo: "colazione" | "pranzo" | "cena";
+    giorno: number;
+    data: string;
+  }>
+): string {
+  return buildPromptAnalisiNutrizionaleBatch(pastiDaAnalizzare);
 }
 
-// Funzione per chiamare Bedrock per analisi nutrizionale singolo pasto
-async function calcolaValoriNutrizionaliPasto(
-  descrizionePasto: string,
-  tipoPasto: "colazione" | "pranzo" | "cena"
-): Promise<ValoriNutrizionaliPasto> {
+// Funzione per creare pasto fallback con valori stimati
+function creaPastoFallback(
+  descrizione: string,
+  tipo: "colazione" | "pranzo" | "cena"
+): ValoriNutrizionaliPasto {
+  // Stime basate sul tipo di pasto
+  const calorieMedie = {
+    colazione: 350,
+    pranzo: 600,
+    cena: 550,
+  };
+
+  const calorie = calorieMedie[tipo];
+  const proteine = Math.round((calorie * 0.2) / 4); // 20% proteine
+  const carboidrati = Math.round((calorie * 0.5) / 4); // 50% carboidrati
+  const grassi = Math.round((calorie * 0.3) / 9); // 30% grassi
+
+  return {
+    descrizione_pasto: descrizione,
+    tipo_pasto: tipo,
+    calorie_stimate: calorie,
+    proteine_g: proteine,
+    carboidrati_g: carboidrati,
+    grassi_g: grassi,
+    fonte_calcolo: "fallback" as const,
+    stato_calcolo: "stimato" as const,
+  };
+}
+
+// Funzione per chiamare Bedrock per analisi nutrizionale batch (multipli pasti)
+async function calcolaValoriNutrizionaliBatch(
+  pastiDaAnalizzare: Array<{
+    descrizione: string;
+    tipo: "colazione" | "pranzo" | "cena";
+    giorno: number;
+    data: string;
+  }>,
+  sessionId: string
+): Promise<Map<string, ValoriNutrizionaliPasto>> {
   const modello = getBedrockModel();
+  const risultati = new Map<string, ValoriNutrizionaliPasto>();
 
   try {
-    // Costruisci prompt nutrizionale
-    const prompt = costruisciPromptNutrizionale(descrizionePasto);
+    // Costruisci prompt per batch di pasti
+    const promptBatch = costruisciPromptNutrizionaleBatch(pastiDaAnalizzare);
 
+    // 🔄 CACHING: Prova a caricare response cachata
     console.log(
-      `🧮 Calcolo nutrizionale per ${tipoPasto}: ${descrizionePasto.substring(
-        0,
-        50
-      )}...`
+      `💾 Checking cache for nutritional batch session ${sessionId}...`
+    );
+    const cachedResponse = loadBedrockResponse("nutrizionale_batch", sessionId);
+
+    let contenutoRisposta: string;
+
+    if (cachedResponse) {
+      console.log("✅ Using cached nutritional batch response!");
+      contenutoRisposta = cachedResponse;
+    } else {
+      console.log(
+        `🧮 Calcolo nutrizionale BATCH per ${pastiDaAnalizzare.length} pasti...`
+      );
+
+      const command = new InvokeModelCommand({
+        modelId: modello,
+        body: JSON.stringify({
+          anthropic_version: "bedrock-2023-05-31",
+          max_tokens: 8000, // Aumentato per batch
+          temperature: 0.3,
+          top_p: 0.8,
+          messages: [
+            {
+              role: "user",
+              content: promptBatch,
+            },
+          ],
+        }),
+      });
+
+      const response = await bedrockClient.send(command);
+      const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+      contenutoRisposta = responseBody.content[0].text;
+
+      // 💾 SALVA RESPONSE IN CACHE
+      saveBedrockResponse(
+        "nutrizionale_batch",
+        sessionId,
+        promptBatch,
+        contenutoRisposta,
+        {
+          modello,
+          numPasti: pastiDaAnalizzare.length,
+          tipiPasti: pastiDaAnalizzare.map((p) => p.tipo),
+        }
+      );
+    }
+
+    // Parsing JSON dalla risposta batch
+    const jsonString = contenutoRisposta
+      .replace(/```json\n?/g, "")
+      .replace(/```\n?/g, "")
+      .trim();
+
+    const risultatoBatch = JSON.parse(jsonString);
+
+    if (
+      !risultatoBatch.analisi_pasti ||
+      !Array.isArray(risultatoBatch.analisi_pasti)
+    ) {
+      throw new Error("Risposta batch non valida");
+    }
+
+    // Definisco il tipo per il pasto analizzato
+    interface PastoAnalizzato {
+      valori_nutrizionali: {
+        calorie_stimate: number;
+        proteine_g: number;
+        carboidrati_g: number;
+        grassi_g: number;
+      };
+    }
+
+    // Processa ogni pasto dal batch
+    risultatoBatch.analisi_pasti.forEach(
+      (pasto: PastoAnalizzato, index: number) => {
+        const pastoOriginale = pastiDaAnalizzare[index];
+        const chiave = `${pastoOriginale.giorno}-${pastoOriginale.tipo}`;
+
+        try {
+          const valori = pasto.valori_nutrizionali;
+          const calorie_stimate = Math.round(
+            Number(valori.calorie_stimate) || 0
+          );
+          const proteine_g = Math.round(Number(valori.proteine_g) || 0);
+          const carboidrati_g = Math.round(Number(valori.carboidrati_g) || 0);
+          const grassi_g = Math.round(Number(valori.grassi_g) || 0);
+
+          // Validazione range
+          if (calorie_stimate >= 50 && calorie_stimate <= 2000) {
+            risultati.set(chiave, {
+              descrizione_pasto: pastoOriginale.descrizione,
+              tipo_pasto: pastoOriginale.tipo,
+              calorie_stimate,
+              proteine_g,
+              carboidrati_g,
+              grassi_g,
+              fonte_calcolo: "bedrock_ai" as const,
+              stato_calcolo: "calcolato" as const,
+            });
+          } else {
+            // Fallback per valori non validi
+            risultati.set(
+              chiave,
+              creaPastoFallback(pastoOriginale.descrizione, pastoOriginale.tipo)
+            );
+          }
+        } catch (error) {
+          console.warn(`⚠️ Errore parsing pasto ${index}:`, error);
+          risultati.set(
+            chiave,
+            creaPastoFallback(pastoOriginale.descrizione, pastoOriginale.tipo)
+          );
+        }
+      }
     );
 
-    // Configurazione chiamata Bedrock (timeout più breve per analisi rapida)
-    const command = new InvokeModelCommand({
-      modelId: modello,
-      body: JSON.stringify({
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 1000, // Ridotto per risposta JSON breve
-        temperature: 0.3, // Bassa per coerenza numerica
-        top_p: 0.8,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
+    return risultati;
+  } catch (error) {
+    console.error("❌ Errore batch nutrizionale:", error);
+
+    // Fallback: crea valori stimati per tutti i pasti
+    pastiDaAnalizzare.forEach((pasto) => {
+      const chiave = `${pasto.giorno}-${pasto.tipo}`;
+      risultati.set(chiave, creaPastoFallback(pasto.descrizione, pasto.tipo));
     });
 
-    // Esecuzione chiamata
-    const response = await bedrockClient.send(command);
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    const contenutoRisposta = responseBody.content[0].text;
-
-    // Parsing JSON dalla risposta
-    try {
-      // Rimuovi eventuali markdown wrapper
-      const jsonString = contenutoRisposta
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-
-      const risultato = JSON.parse(jsonString);
-
-      // Validazione struttura
-      if (!risultato.valori_nutrizionali) {
-        throw new Error(
-          "Struttura JSON non valida: manca 'valori_nutrizionali'"
-        );
-      }
-
-      const valori = risultato.valori_nutrizionali;
-
-      // Validazione e normalizzazione valori
-      const calorie_stimate = Math.round(Number(valori.calorie_stimate) || 0);
-      const proteine_g = Math.round(Number(valori.proteine_g) || 0);
-      const carboidrati_g = Math.round(Number(valori.carboidrati_g) || 0);
-      const grassi_g = Math.round(Number(valori.grassi_g) || 0);
-
-      // Validazione range realistici
-      if (
-        calorie_stimate < 50 ||
-        calorie_stimate > 2000 ||
-        proteine_g < 0 ||
-        carboidrati_g < 0 ||
-        grassi_g < 0
-      ) {
-        console.warn(
-          `⚠️ Valori nutrizionali sospetti per ${tipoPasto}: ${calorie_stimate}kcal, ${proteine_g}g prot`
-        );
-        throw new Error("Valori nutrizionali fuori range realistico");
-      }
-
-      console.log(
-        `✅ Calcolato: ${calorie_stimate}kcal, ${proteine_g}g prot, ${carboidrati_g}g carb, ${grassi_g}g grassi`
-      );
-
-      return {
-        calorie_stimate,
-        proteine_g,
-        carboidrati_g,
-        grassi_g,
-        stato_calcolo: "calcolato",
-        fonte_calcolo: "bedrock_ai",
-        descrizione_pasto: descrizionePasto,
-        tipo_pasto: tipoPasto,
-      };
-    } catch (parseError) {
-      console.error(`❌ Errore parsing JSON per ${tipoPasto}:`, parseError);
-      console.error(
-        "🔍 Contenuto ricevuto:",
-        contenutoRisposta.substring(0, 200)
-      );
-      throw parseError;
-    }
-  } catch (error) {
-    console.error(`❌ Errore calcolo nutrizionale per ${tipoPasto}:`, error);
-
-    // Fallback con valori stimati
-    const fallback = FALLBACK_NUTRIZIONALI[tipoPasto];
-    console.log(
-      `🔄 Usando valori fallback per ${tipoPasto}: ${fallback.calorie_stimate}kcal`
-    );
-
-    return {
-      calorie_stimate: fallback.calorie_stimate,
-      proteine_g: fallback.proteine_g,
-      carboidrati_g: fallback.carboidrati_g,
-      grassi_g: fallback.grassi_g,
-      stato_calcolo: "stimato",
-      fonte_calcolo: "fallback",
-      descrizione_pasto: descrizionePasto,
-      tipo_pasto: tipoPasto,
-    };
+    return risultati;
   }
 }
 
@@ -1221,6 +1395,7 @@ function estraiDescrizioniPasti(pianoGenerato: Record<string, unknown>): Array<{
         if (pasti.colazione) {
           const colazione = pasti.colazione as Record<string, unknown>;
           pastiGiorno.colazione =
+            (colazione.descrizione_dettagliata as string) ||
             (colazione.descrizione as string) ||
             (colazione.nome as string) ||
             "Colazione non specificata";
@@ -1228,6 +1403,7 @@ function estraiDescrizioniPasti(pianoGenerato: Record<string, unknown>): Array<{
         if (pasti.pranzo) {
           const pranzo = pasti.pranzo as Record<string, unknown>;
           pastiGiorno.pranzo =
+            (pranzo.descrizione_dettagliata as string) ||
             (pranzo.descrizione as string) ||
             (pranzo.nome as string) ||
             "Pranzo non specificato";
@@ -1235,6 +1411,7 @@ function estraiDescrizioniPasti(pianoGenerato: Record<string, unknown>): Array<{
         if (pasti.cena) {
           const cena = pasti.cena as Record<string, unknown>;
           pastiGiorno.cena =
+            (cena.descrizione_dettagliata as string) ||
             (cena.descrizione as string) ||
             (cena.nome as string) ||
             "Cena non specificata";
@@ -1270,7 +1447,8 @@ function estraiDescrizioniPasti(pianoGenerato: Record<string, unknown>): Array<{
 
 // Funzione principale FASE 6: Calcolo nutrizionale completo del piano
 async function calcolaValoriNutrizionaliPiano(
-  pianoGenerato: Record<string, unknown>
+  pianoGenerato: Record<string, unknown>,
+  sessionId: string
 ): Promise<{
   valori_giornalieri: ValoriNutrizionaliGiorno[];
   riepilogo_settimanale: {
@@ -1299,13 +1477,45 @@ async function calcolaValoriNutrizionaliPiano(
   // Estrai descrizioni pasti dal piano
   const descrizioniPasti = estraiDescrizioniPasti(pianoGenerato);
 
+  // **NOVITÀ: Prepara tutti i pasti per batch processing**
+  const tuttiIPasti: Array<{
+    descrizione: string;
+    tipo: "colazione" | "pranzo" | "cena";
+    giorno: number;
+    data: string;
+  }> = [];
+
+  // Raccogli tutti i pasti da tutti i giorni
+  for (const giornoData of descrizioniPasti) {
+    for (const [tipoPasto, descrizione] of Object.entries(giornoData.pasti)) {
+      if (descrizione) {
+        tuttiIPasti.push({
+          descrizione,
+          tipo: tipoPasto as "colazione" | "pranzo" | "cena",
+          giorno: giornoData.giorno,
+          data: giornoData.data,
+        });
+      }
+    }
+  }
+
+  console.log(
+    `🔥 BATCH PROCESSING: ${tuttiIPasti.length} pasti da calcolare in una volta`
+  );
+
+  // **NOVITÀ: Calcolo batch di tutti i pasti**
+  const risultatiBatch = await calcolaValoriNutrizionaliBatch(
+    tuttiIPasti,
+    sessionId
+  );
+
   const valoriGiornalieri: ValoriNutrizionaliGiorno[] = [];
-  let pastiTotali = 0;
+  const pastiTotali = tuttiIPasti.length;
   let pastiCalcolatiAI = 0;
   let pastiStimati = 0;
   let pastiConErrore = 0;
 
-  // Processa ogni giorno
+  // Processa ogni giorno usando i risultati batch
   for (const giornoData of descrizioniPasti) {
     const valoriGiorno: ValoriNutrizionaliGiorno = {
       giorno_numero: giornoData.giorno,
@@ -1327,27 +1537,35 @@ async function calcolaValoriNutrizionaliPiano(
       },
     };
 
-    // Calcola valori per ogni pasto del giorno
+    // **NOVITÀ: Usa i risultati batch invece di chiamate singole**
     for (const [tipoPasto, descrizione] of Object.entries(giornoData.pasti)) {
       if (descrizione) {
-        pastiTotali++;
-        const valoriPasto = await calcolaValoriNutrizionaliPasto(
-          descrizione,
-          tipoPasto as "colazione" | "pranzo" | "cena"
-        );
+        const chiave = `${giornoData.giorno}-${tipoPasto}`;
+        const valoriPasto = risultatiBatch.get(chiave);
 
-        valoriGiorno.pasti[tipoPasto as keyof typeof valoriGiorno.pasti] =
-          valoriPasto;
+        if (valoriPasto) {
+          valoriGiorno.pasti[tipoPasto as keyof typeof valoriGiorno.pasti] =
+            valoriPasto;
 
-        // Aggiorna contatori
-        if (valoriPasto.fonte_calcolo === "bedrock_ai") {
-          pastiCalcolatiAI++;
+          // Aggiorna contatori
+          if (valoriPasto.fonte_calcolo === "bedrock_ai") {
+            pastiCalcolatiAI++;
+          } else {
+            pastiStimati++;
+          }
+
+          if (valoriPasto.stato_calcolo === "errore") {
+            pastiConErrore++;
+          }
         } else {
+          // Fallback se non trovato nel batch
+          const fallbackPasto = creaPastoFallback(
+            descrizione,
+            tipoPasto as "colazione" | "pranzo" | "cena"
+          );
+          valoriGiorno.pasti[tipoPasto as keyof typeof valoriGiorno.pasti] =
+            fallbackPasto;
           pastiStimati++;
-        }
-
-        if (valoriPasto.stato_calcolo === "errore") {
-          pastiConErrore++;
         }
       }
     }
@@ -1488,6 +1706,10 @@ async function calcolaValoriNutrizionaliPiano(
 }
 
 export async function POST(request: NextRequest) {
+  // Genera session ID per caching
+  const sessionId = generateSessionId();
+  console.log(`🆔 Session ID: ${sessionId}`);
+
   try {
     // Parsing del body della richiesta
     const body: GeneraPianoRequest = await request.json();
@@ -1503,6 +1725,7 @@ export async function POST(request: NextRequest) {
 
     // Log per debugging
     console.log("Generazione piano per:", {
+      sessionId,
       periodo_giorni,
       preferenze,
       esclusioni,
@@ -1532,7 +1755,8 @@ export async function POST(request: NextRequest) {
     const risultatoGenerazione = await generaPianoConBedrock(
       contestoRAG,
       preferenze,
-      esclusioni
+      esclusioni,
+      sessionId
     );
     console.log(
       `✅ Piano generato con successo in ${risultatoGenerazione.metadata_chiamata.tempo_elaborazione_ms}ms`
@@ -1541,7 +1765,8 @@ export async function POST(request: NextRequest) {
     // FASE 6: Calcolo Nutrizionale A Posteriori
     console.log("🧮 Inizio FASE 6: Calcolo nutrizionale a posteriori...");
     const risultatoNutrizionale = await calcolaValoriNutrizionaliPiano(
-      risultatoGenerazione.piano_generato
+      risultatoGenerazione.piano_generato,
+      sessionId
     );
     console.log(
       `✅ Calcolo nutrizionale completato in ${risultatoNutrizionale.statistiche_calcolo.tempo_elaborazione_ms}ms`
@@ -2248,7 +2473,7 @@ async function creaRelazioniPianoPasti(
   pianoId: number,
   pianoGenerato: Record<string, unknown>,
   mappaIdPasti: Map<string, number>
-): Promise<void> {
+): Promise<number> {
   console.log("🔗 FASE 7.6: Creazione relazioni piano-pasti...");
 
   const relazioniDaInserire: Array<{
@@ -2313,6 +2538,8 @@ async function creaRelazioniPianoPasti(
       await db.insert(pianiPasti).values(relazioniDaInserire);
       console.log(`✅ Relazioni piano-pasti create con successo`);
     }
+
+    return relazioniDaInserire.length;
   } catch (error) {
     console.error("❌ Errore creazione relazioni piano-pasti:", error);
     throw new Error(
@@ -2450,22 +2677,32 @@ async function eseguiFase7AggregazioneESalvataggio(
     const riepilogoSettimanale = calcolaTotaliSettimanali(giorniConTotali);
 
     // 7.3: Salva piano principale
+    console.log("🔄 Iniziando salvataggio piano principale...");
     const pianoId = await salvaPianoPrincipale(periodoGiorni, analisiStorica);
+    console.log(`✅ Piano principale salvato con ID: ${pianoId}`);
 
     // 7.4: Salva dettagli nutrizionali giornalieri
+    console.log("🔄 Iniziando salvataggio dettagli nutrizionali...");
     await salvaDettagliNutrizionaliGiornalieri(pianoId, giorniConTotali);
+    console.log("✅ Dettagli nutrizionali salvati");
 
     // 7.5: Salva nuovi pasti generati dall'AI
+    console.log("🔄 Iniziando salvataggio nuovi pasti...");
     const { nuoviPastiCreati, mappaIdPasti } = await salvaNuoviPastiGenerati(
       pianoGenerato,
       risultatoNutrizionale
     );
+    console.log(`✅ Nuovi pasti salvati: ${nuoviPastiCreati}`);
 
     // 7.6: Crea relazioni piano-pasti
+    console.log("🔄 Iniziando creazione relazioni piano-pasti...");
     await creaRelazioniPianoPasti(pianoId, pianoGenerato, mappaIdPasti);
+    console.log("✅ Relazioni piano-pasti create");
 
     // 7.7 & 7.8: Genera embeddings per nuovi pasti
+    console.log("🔄 Iniziando generazione embeddings...");
     await generaEmbeddingsNuoviPasti(mappaIdPasti, nuoviPastiCreati);
+    console.log("✅ Embeddings generati");
 
     const endTime = Date.now();
     const relazioni_create = mappaIdPasti.size * 7; // Stima: ogni pasto x 7 giorni
