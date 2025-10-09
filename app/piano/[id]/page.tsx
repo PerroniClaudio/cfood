@@ -171,23 +171,6 @@ export default function PianoPage() {
                   {dettagliPiano.piano.descrizione}
                 </p>
               )}
-              <div className="flex flex-col lg:flex-row items-center gap-4 text-sm text-base-content">
-                <span className="badge badge-outline badge-primary gap-1">
-                  <Utensils className="w-4 h-4 inline mr-1" />
-                  {dettagliPiano.giorni?.length || 0} giorni
-                </span>
-                <span className="badge badge-outline badge-secondary gap-1">
-                  👨‍🍳 {dettagliPiano.piano?.autore || "Sconosciuto"}
-                </span>
-                <span className="badge badge-outline badge-info gap-1">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  {dettagliPiano.piano?.dataCreazione
-                    ? new Date(
-                        dettagliPiano.piano.dataCreazione
-                      ).toLocaleDateString("it-IT")
-                    : "N/A"}
-                </span>
-              </div>
             </div>
             <div className="text-right">
               <div className="badge badge-lg badge-accent text-lg font-bold">
