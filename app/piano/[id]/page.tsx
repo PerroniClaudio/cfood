@@ -1,32 +1,62 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Calendar,
-  Clock,
-  Utensils,
-  TrendingUp,
-  AlertCircle,
-} from "lucide-react";
+import { ArrowLeft, Calendar, Utensils, AlertCircle } from "lucide-react";
+
+// Interfacce per i tipi
+interface Piano {
+  id: number;
+  nome: string;
+  descrizione?: string;
+  autore: string;
+  dataCreazione: string;
+}
+
+interface Pasto {
+  id: number;
+  tipoPasto: "colazione" | "pranzo" | "cena";
+  descrizioneDettagliata: string;
+  calorieStimate: number;
+  proteineG: number;
+  carboidratiG: number;
+  grassiG: number;
+  noteAggiuntive?: string;
+}
+
+interface Giorno {
+  giorno: string;
+  calorie: number;
+  proteine: number;
+  carboidrati: number;
+  grassi: number;
+}
+
+interface Relazione {
+  giornoSettimana: string;
+  pastoId: number;
+  ordineNelGiorno: number;
+}
+
+interface DettagliPiano {
+  piano: Piano;
+  giorni: Giorno[];
+  pasti: Pasto[];
+  relazioni: Relazione[];
+}
 
 export default function PianoPage() {
   const params = useParams();
   const router = useRouter();
   const pianoId = params.id as string;
 
-  const [dettagliPiano, setDettagliPiano] = useState<any>(null);
+  const [dettagliPiano, setDettagliPiano] = useState<DettagliPiano | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [errore, setErrore] = useState("");
 
-  useEffect(() => {
-    if (pianoId) {
-      caricaDettagliPiano();
-    }
-  }, [pianoId]);
-
-  const caricaDettagliPiano = async () => {
+  const caricaDettagliPiano = useCallback(async () => {
     setLoading(true);
     setErrore("");
 
@@ -49,10 +79,16 @@ export default function PianoPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pianoId]);
+
+  useEffect(() => {
+    if (pianoId) {
+      caricaDettagliPiano();
+    }
+  }, [pianoId, caricaDettagliPiano]);
 
   // Funzione per ordinare i giorni da Lunedì a Domenica
-  const ordinaGiorni = (giorni: any[]) => {
+  const ordinaGiorni = (giorni: Giorno[]) => {
     const ordineGiorni = [
       "lunedì",
       "martedì",
@@ -180,7 +216,7 @@ export default function PianoPage() {
                 <div className="text-2xl font-bold text-blue-700">
                   {Math.round(
                     dettagliPiano.giorni.reduce(
-                      (acc: number, g: any) => acc + (g.calorie || 0),
+                      (acc: number, g: Giorno) => acc + (g.calorie || 0),
                       0
                     ) / dettagliPiano.giorni.length
                   )}
@@ -193,7 +229,7 @@ export default function PianoPage() {
                 <div className="text-2xl font-bold text-green-700">
                   {Math.round(
                     dettagliPiano.giorni.reduce(
-                      (acc: number, g: any) => acc + (g.proteine || 0),
+                      (acc: number, g: Giorno) => acc + (g.proteine || 0),
                       0
                     ) / dettagliPiano.giorni.length
                   )}
@@ -206,7 +242,7 @@ export default function PianoPage() {
                 <div className="text-2xl font-bold text-orange-700">
                   {Math.round(
                     dettagliPiano.giorni.reduce(
-                      (acc: number, g: any) => acc + (g.carboidrati || 0),
+                      (acc: number, g: Giorno) => acc + (g.carboidrati || 0),
                       0
                     ) / dettagliPiano.giorni.length
                   )}
@@ -219,7 +255,7 @@ export default function PianoPage() {
                 <div className="text-2xl font-bold text-purple-700">
                   {Math.round(
                     dettagliPiano.giorni.reduce(
-                      (acc: number, g: any) => acc + (g.grassi || 0),
+                      (acc: number, g: Giorno) => acc + (g.grassi || 0),
                       0
                     ) / dettagliPiano.giorni.length
                   )}
@@ -235,17 +271,19 @@ export default function PianoPage() {
         {/* Dettagli per ogni giorno */}
         {dettagliPiano.giorni &&
           ordinaGiorni([...dettagliPiano.giorni]).map(
-            (giorno: any, index: number) => {
+            (giorno: Giorno, index: number) => {
               // Trova i pasti per questo giorno
               const pastiGiorno =
                 dettagliPiano.relazioni
-                  ?.filter((r: any) => r.giornoSettimana === giorno.giorno)
+                  ?.filter(
+                    (r: Relazione) => r.giornoSettimana === giorno.giorno
+                  )
                   ?.sort(
-                    (a: any, b: any) =>
+                    (a: Relazione, b: Relazione) =>
                       (a.ordineNelGiorno || 0) - (b.ordineNelGiorno || 0)
                   )
-                  ?.map((r: any) =>
-                    dettagliPiano.pasti?.find((p: any) => p.id === r.pastoId)
+                  ?.map((r: Relazione) =>
+                    dettagliPiano.pasti?.find((p: Pasto) => p.id === r.pastoId)
                   )
                   ?.filter(Boolean) || [];
 
@@ -280,73 +318,77 @@ export default function PianoPage() {
                       </div>
                     ) : (
                       <div className="grid gap-6 lg:grid-cols-3">
-                        {pastiGiorno.map((pasto: any, pastoIndex: number) => {
-                          const coloreCard =
-                            pasto.tipoPasto === "colazione"
-                              ? "from-amber-50 to-orange-50 border-amber-200"
-                              : pasto.tipoPasto === "pranzo"
-                              ? "from-blue-50 to-indigo-50 border-blue-200"
-                              : "from-purple-50 to-pink-50 border-purple-200";
+                        {pastiGiorno.map(
+                          (pasto: Pasto | undefined, pastoIndex: number) => {
+                            if (!pasto) return null;
 
-                          const coloreTestata =
-                            pasto.tipoPasto === "colazione"
-                              ? "text-amber-800"
-                              : pasto.tipoPasto === "pranzo"
-                              ? "text-blue-800"
-                              : "text-purple-800";
+                            const coloreCard =
+                              pasto.tipoPasto === "colazione"
+                                ? "from-amber-50 to-orange-50 border-amber-200"
+                                : pasto.tipoPasto === "pranzo"
+                                ? "from-blue-50 to-indigo-50 border-blue-200"
+                                : "from-purple-50 to-pink-50 border-purple-200";
 
-                          const coloreValori =
-                            pasto.tipoPasto === "colazione"
-                              ? "text-amber-700"
-                              : pasto.tipoPasto === "pranzo"
-                              ? "text-blue-700"
-                              : "text-purple-700";
+                            const coloreTestata =
+                              pasto.tipoPasto === "colazione"
+                                ? "text-amber-800"
+                                : pasto.tipoPasto === "pranzo"
+                                ? "text-blue-800"
+                                : "text-purple-800";
 
-                          return (
-                            <div
-                              key={pastoIndex}
-                              className={`bg-gradient-to-br ${coloreCard} rounded-xl p-6 border`}>
-                              <div className="flex items-center gap-2 mb-4">
-                                <div
-                                  className={`w-3 h-3 rounded-full ${
-                                    pasto.tipoPasto === "colazione"
-                                      ? "bg-amber-400"
-                                      : pasto.tipoPasto === "pranzo"
-                                      ? "bg-blue-400"
-                                      : "bg-purple-400"
-                                  }`}></div>
-                                <h4
-                                  className={`text-lg font-bold ${coloreTestata} capitalize`}>
-                                  {pasto.tipoPasto}
-                                </h4>
-                                <div
-                                  className={`ml-auto text-sm font-semibold ${coloreValori}`}>
-                                  {pasto.calorieStimate || 0} kcal
-                                </div>
-                              </div>
+                            const coloreValori =
+                              pasto.tipoPasto === "colazione"
+                                ? "text-amber-700"
+                                : pasto.tipoPasto === "pranzo"
+                                ? "text-blue-700"
+                                : "text-purple-700";
 
+                            return (
                               <div
-                                className={`text-sm ${coloreValori} mb-4 leading-relaxed`}>
-                                {pasto.descrizioneDettagliata ||
-                                  "Descrizione non disponibile"}
-                              </div>
-
-                              <div
-                                className={`flex gap-3 text-xs ${coloreValori} pt-3 border-t border-gray-200`}>
-                                <span>P: {pasto.proteineG || 0}g</span>
-                                <span>C: {pasto.carboidratiG || 0}g</span>
-                                <span>G: {pasto.grassiG || 0}g</span>
-                              </div>
-
-                              {pasto.noteAggiuntive && (
-                                <div
-                                  className={`mt-3 text-xs ${coloreValori} italic`}>
-                                  💡 {pasto.noteAggiuntive}
+                                key={pastoIndex}
+                                className={`bg-gradient-to-br ${coloreCard} rounded-xl p-6 border`}>
+                                <div className="flex items-center gap-2 mb-4">
+                                  <div
+                                    className={`w-3 h-3 rounded-full ${
+                                      pasto.tipoPasto === "colazione"
+                                        ? "bg-amber-400"
+                                        : pasto.tipoPasto === "pranzo"
+                                        ? "bg-blue-400"
+                                        : "bg-purple-400"
+                                    }`}></div>
+                                  <h4
+                                    className={`text-lg font-bold ${coloreTestata} capitalize`}>
+                                    {pasto.tipoPasto}
+                                  </h4>
+                                  <div
+                                    className={`ml-auto text-sm font-semibold ${coloreValori}`}>
+                                    {pasto.calorieStimate || 0} kcal
+                                  </div>
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
+
+                                <div
+                                  className={`text-sm ${coloreValori} mb-4 leading-relaxed`}>
+                                  {pasto.descrizioneDettagliata ||
+                                    "Descrizione non disponibile"}
+                                </div>
+
+                                <div
+                                  className={`flex gap-3 text-xs ${coloreValori} pt-3 border-t border-gray-200`}>
+                                  <span>P: {pasto.proteineG || 0}g</span>
+                                  <span>C: {pasto.carboidratiG || 0}g</span>
+                                  <span>G: {pasto.grassiG || 0}g</span>
+                                </div>
+
+                                {pasto.noteAggiuntive && (
+                                  <div
+                                    className={`mt-3 text-xs ${coloreValori} italic`}>
+                                    💡 {pasto.noteAggiuntive}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                        )}
                       </div>
                     )}
                   </div>
