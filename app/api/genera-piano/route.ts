@@ -121,7 +121,6 @@ const CONFIG = {
   // Parametri LLM
   MAX_TOKENS_OUTPUT: 80000,
   TEMPERATURE_LLM: 0.7,
-  TOP_P_LLM: 0.9,
 
   // Parametri validazione
   GIORNI_PIANO_RICHIESTI: 7,
@@ -155,7 +154,7 @@ async function getPianiRecentiIds(
     .where(
       gte(pianiAlimentari.dataCreazione, dataLimite.toISOString().split("T")[0])
     )
-    .orderBy(desc(pianiAlimentari.dataCreazione));
+    .orderBy(desc(pianiAlimentari.id));
 
   return result.map((row) => row.id);
 }
@@ -173,7 +172,7 @@ async function getPianiRecenti(
     .where(
       gte(pianiAlimentari.dataCreazione, dataLimite.toISOString().split("T")[0])
     )
-    .orderBy(desc(pianiAlimentari.dataCreazione));
+    .orderBy(desc(pianiAlimentari.id));
 
   return result.map((row) => ({
     id: row.id.toString(),
@@ -1037,7 +1036,6 @@ async function generaPianoConBedrock(
           anthropic_version: "bedrock-2023-05-31",
           max_tokens: CONFIG.MAX_TOKENS_OUTPUT,
           temperature: CONFIG.TEMPERATURE_LLM,
-          top_p: CONFIG.TOP_P_LLM,
           messages: [
             {
               role: "user",
@@ -1254,7 +1252,6 @@ async function calcolaValoriNutrizionaliBatch(
           anthropic_version: "bedrock-2023-05-31",
           max_tokens: 8000, // Aumentato per batch
           temperature: 0.3,
-          top_p: 0.8,
           messages: [
             {
               role: "user",

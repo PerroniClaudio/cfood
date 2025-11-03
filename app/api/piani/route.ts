@@ -26,7 +26,7 @@ export async function GET() {
     const lista = await db
       .select()
       .from(pianiAlimentari)
-      .orderBy(desc(pianiAlimentari.dataCreazione))
+      .orderBy(desc(pianiAlimentari.id))
       .limit(50);
 
     console.log(`📋 Found ${lista.length} plans`);

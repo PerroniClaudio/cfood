@@ -98,6 +98,56 @@ export function buildPromptAnalisiNutrizionaleBatch(
 }
 
 /**
+ * Costruisce il prompt per rigenerare (reroll) un singolo pasto
+ */
+export function buildPromptRerollPasto(options: {
+  giornoLabel: string;
+  tipoPasto: string;
+  descrizioneAttuale: string;
+  calorieTarget: number;
+  proteineTarget: number;
+  carboidratiTarget: number;
+  grassiTarget: number;
+  preferenze: string[];
+  esclusioni: string[];
+  storicoPasti: string;
+}): string {
+  const {
+    giornoLabel,
+    tipoPasto,
+    descrizioneAttuale,
+    calorieTarget,
+    proteineTarget,
+    carboidratiTarget,
+    grassiTarget,
+    preferenze,
+    esclusioni,
+    storicoPasti,
+  } = options;
+
+  const variables = {
+    giornoLabel,
+    tipoPasto,
+    descrizioneAttuale,
+    calorieTarget: calorieTarget.toString(),
+    proteineTarget: proteineTarget.toString(),
+    carboidratiTarget: carboidratiTarget.toString(),
+    grassiTarget: grassiTarget.toString(),
+    preferenze:
+      preferenze.length > 0
+        ? preferenze.join(", ")
+        : "Nessuna preferenza specificata",
+    esclusioni:
+      esclusioni.length > 0
+        ? esclusioni.join(", ")
+        : "Nessuna esclusione specificata",
+    storicoPasti: storicoPasti || "Nessun esempio disponibile.",
+  };
+
+  return loadPromptTemplate("reroll-pasto.md", variables);
+}
+
+/**
  * Lista tutti i prompt disponibili nella cartella prompts
  */
 export function getAvailablePrompts(): string[] {

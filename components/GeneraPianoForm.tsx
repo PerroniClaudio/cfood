@@ -98,7 +98,7 @@ export default function GeneraPianoForm({
   };
 
   return (
-    <div className="p-8">
+    <div className="p-8 text-gray-900">
       <div className="mb-6">
         <p className="text-gray-600">
           Crea un piano settimanale personalizzato basato su dati storici e
@@ -118,7 +118,7 @@ export default function GeneraPianoForm({
             max="365"
             value={periodoGiorni}
             onChange={(e) => setPeriodoGiorni(Number(e.target.value))}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             placeholder="Inserisci il numero di giorni (7-365)"
           />
           <p className="text-sm text-gray-500">
@@ -137,7 +137,7 @@ export default function GeneraPianoForm({
             type="text"
             value={preferenze}
             onChange={(e) => setPreferenze(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             placeholder="es: vegetariano, mediterraneo, biologico, senza glutine"
           />
           <p className="text-sm text-gray-500">
@@ -156,7 +156,7 @@ export default function GeneraPianoForm({
             type="text"
             value={esclusioni}
             onChange={(e) => setEsclusioni(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             placeholder="es: glutine, lattosio, uova, crostacei, frutta secca"
           />
           <p className="text-sm text-gray-500">

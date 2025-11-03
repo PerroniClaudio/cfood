@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, Utensils, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  Utensils,
+  AlertCircle,
+  RefreshCcw,
+} from "lucide-react";
 
 // Interfacce per i tipi
 interface Piano {
@@ -11,6 +17,7 @@ interface Piano {
   descrizione?: string;
   autore: string;
   dataCreazione: string;
+  dataUltimaModifica?: string | null;
 }
 
 interface Pasto {
@@ -56,6 +63,11 @@ export default function PianoPage() {
   );
   const [loading, setLoading] = useState(true);
   const [errore, setErrore] = useState("");
+  const [rerollingPastoId, setRerollingPastoId] = useState<number | null>(null);
+  const [rerollFeedback, setRerollFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const caricaDettagliPiano = useCallback(async () => {
     setLoading(true);
@@ -99,6 +111,108 @@ export default function PianoPage() {
       if (indiceB === -1) return -1;
       return indiceA - indiceB;
     });
+  };
+
+  const handleRerollPasto = async (pastoId: number) => {
+    setRerollFeedback(null);
+    setRerollingPastoId(pastoId);
+    try {
+      const response = await fetch(`/api/piani/${pianoId}/reroll`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ pastoId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Errore nella rigenerazione del pasto");
+      }
+
+      setDettagliPiano((prev) => {
+        if (!prev) return prev;
+
+        const pastoAggiornato = data.pasto;
+        const pastoOriginaleId = data.pastoOriginaleId;
+        const giornoAggiornato = data.giorno;
+        const relazioneAggiornata = data.relazioneAggiornata;
+
+        const nuoviPasti = prev.pasti.some((pasto) => pasto.id === pastoOriginaleId)
+          ? prev.pasti.map((pasto) =>
+              pasto.id === pastoOriginaleId
+                ? {
+                    ...pasto,
+                    ...pastoAggiornato,
+                    noteAggiuntive: pastoAggiornato.noteAggiuntive || undefined,
+                  }
+                : pasto
+            )
+          : [
+              ...prev.pasti,
+              {
+                ...pastoAggiornato,
+                noteAggiuntive: pastoAggiornato.noteAggiuntive || undefined,
+              },
+            ];
+
+        const nuoveRelazioni =
+          relazioneAggiornata && prev.relazioni
+            ? prev.relazioni.map((relazione) =>
+                relazione.pastoId === pastoOriginaleId
+                  ? {
+                      ...relazione,
+                      pastoId: relazioneAggiornata.pastoId,
+                      ordineNelGiorno: relazioneAggiornata.ordineNelGiorno,
+                    }
+                  : relazione
+              )
+            : prev.relazioni;
+
+        return {
+          ...prev,
+          pasti: nuoviPasti,
+          relazioni: nuoveRelazioni,
+          giorni:
+            giornoAggiornato && prev.giorni
+              ? prev.giorni.map((giorno) =>
+                  giorno.giorno === giornoAggiornato.giorno
+                    ? {
+                        ...giorno,
+                        calorie: giornoAggiornato.calorie,
+                        proteine: giornoAggiornato.proteine,
+                        carboidrati: giornoAggiornato.carboidrati,
+                        grassi: giornoAggiornato.grassi,
+                      }
+                    : giorno
+                )
+              : prev.giorni,
+          piano: prev.piano
+            ? {
+                ...prev.piano,
+                dataUltimaModifica: new Date().toISOString().split("T")[0],
+              }
+            : prev.piano,
+        };
+      });
+
+      setRerollFeedback({
+        type: "success",
+        message: "Pasto rigenerato con successo 🎉",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Errore nella rigenerazione del pasto";
+      setRerollFeedback({
+        type: "error",
+        message,
+      });
+    } finally {
+      setRerollingPastoId(null);
+    }
   };
 
   if (loading) {
@@ -245,6 +359,25 @@ export default function PianoPage() {
         </div>
 
         {/* Dettagli per ogni giorno */}
+        {rerollFeedback && (
+          <div
+            className={`alert ${
+              rerollFeedback.type === "success"
+                ? "alert-success"
+                : "alert-error"
+            }`}>
+            <span>{rerollFeedback.message}</span>
+            <div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={() => setRerollFeedback(null)}>
+                Chiudi
+              </button>
+            </div>
+          </div>
+        )}
+
         {dettagliPiano.giorni &&
           ordinaGiorni([...dettagliPiano.giorni]).map(
             (giorno: Giorno, index: number) => {
@@ -335,6 +468,25 @@ export default function PianoPage() {
                                       💡 {pasto.noteAggiuntive}
                                     </div>
                                   )}
+
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      handleRerollPasto(pasto.id);
+                                    }}
+                                    disabled={rerollingPastoId === pasto.id}
+                                    className="btn btn-outline btn-xs w-full mt-4">
+                                    {rerollingPastoId === pasto.id ? (
+                                      <span className="loading loading-spinner loading-xs"></span>
+                                    ) : (
+                                      <span className="flex items-center justify-center gap-2">
+                                        <RefreshCcw className="w-3 h-3" />
+                                        Rigenera con AI
+                                      </span>
+                                    )}
+                                  </button>
                                 </div>
                               </div>
                             );

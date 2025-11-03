@@ -69,7 +69,7 @@ export default function Modal({
         <div
           className={`
             relative w-full ${getSizeClasses()} 
-            bg-white rounded-2xl shadow-2xl 
+            bg-white rounded-2xl shadow-2xl text-gray-900
             transform transition-all
             max-h-[90vh] overflow-hidden
             flex flex-col

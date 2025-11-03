@@ -48,7 +48,11 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.lista) {
-          setPianiRecenti(data.lista);
+          const listaOrdinata = [...data.lista].sort(
+            (a: { id: number | string }, b: { id: number | string }) =>
+              Number(b.id) - Number(a.id)
+          );
+          setPianiRecenti(listaOrdinata);
         } else {
           setPianiRecenti([]);
         }
