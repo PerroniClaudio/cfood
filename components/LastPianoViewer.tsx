@@ -1,8 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, Calendar, TrendingUp } from "lucide-react";
+import { Eye, Calendar, Loader2, ArrowLeft, History } from "lucide-react";
 import PianoAlimentareView from "./PianoAlimentareView";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface Piano {
   id: number;
@@ -62,16 +71,20 @@ export default function LastPianoViewer() {
 
   if (pianoSelezionato) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <button
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex items-center justify-between sticky top-4 z-50 bg-background/80 backdrop-blur-md p-4 rounded-xl border border-border/50 shadow-sm">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setPianoSelezionato(null)}
-            className="btn btn-outline btn-sm">
-            ← Torna ai piani
-          </button>
-          <div className="text-sm text-gray-500">
-            Piano ID: {pianoSelezionato.piano_id}
-          </div>
+            className="gap-2 hover:bg-primary/10 hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Torna ai piani
+          </Button>
+          <Badge variant="outline" className="text-xs font-mono">
+            ID: {pianoSelezionato.piano_id}
+          </Badge>
         </div>
         <PianoAlimentareView
           pianoData={
@@ -85,76 +98,94 @@ export default function LastPianoViewer() {
   }
 
   return (
-    <div className="card bg-base-100 shadow-xl mt-6">
-      <div className="card-body">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="w-6 h-6 text-primary" />
-          <h3 className="card-title text-xl">Piani Alimentari Recenti</h3>
+    <Card className="w-full mt-10 border-0 shadow-none bg-transparent">
+      <CardHeader className="px-0 pb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            <History className="w-5 h-5" />
+          </div>
+          <CardTitle className="text-2xl font-bold text-foreground">Piani Alimentari Recenti</CardTitle>
         </div>
-
+        <CardDescription className="text-base">
+          Visualizza e gestisci i tuoi piani alimentari generati in precedenza.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
         {loading ? (
-          <div className="flex justify-center py-8">
-            <span className="loading loading-spinner loading-md"></span>
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            <p className="text-muted-foreground text-sm animate-pulse">Caricamento piani...</p>
           </div>
         ) : pianiRecenti.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>Nessun piano alimentare trovato</p>
-            <p className="text-sm mt-2">
-              Genera il primo piano usando il form sopra
+          <div className="text-center py-16 border border-dashed border-border/60 rounded-xl bg-muted/5">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium text-foreground mb-1">
+              Nessun piano trovato
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              Non hai ancora generato nessun piano alimentare. Usa il form sopra per iniziare.
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {pianiRecenti.slice(0, 5).map((piano) => (
-              <div
+          <div className="grid gap-4">
+            {pianiRecenti.slice(0, 5).map((piano, index) => (
+              <Card
                 key={piano.id}
-                className="border border-base-300 rounded-lg p-4 hover:bg-base-50 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-lg mb-1">{piano.nome}</h4>
-                    <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                className="group overflow-hidden border-border/40 bg-card/50 hover:bg-card hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">{piano.nome}</h4>
+                      <Badge variant="secondary" className="text-[10px] font-normal bg-secondary/50">
+                        {piano.autore}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-1 group-hover:text-muted-foreground/80 transition-colors">
                       {piano.descrizione}
                     </p>
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span>
-                        <Calendar className="w-3 h-3 inline mr-1" />
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground/70 pt-1">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5" />
                         {new Date(piano.dataCreazione).toLocaleDateString(
-                          "it-IT"
+                          "it-IT",
+                          { day: 'numeric', month: 'long', year: 'numeric' }
                         )}
                       </span>
-                      <span>Autore: {piano.autore}</span>
                     </div>
                   </div>
-                  <button
+                  <Button
                     onClick={() => visualizzaPiano(piano.id)}
                     disabled={loadingDettaglio}
-                    className="btn btn-primary btn-sm ml-4">
+                    className="shrink-0 bg-background hover:bg-primary hover:text-primary-foreground text-foreground border border-input shadow-sm group-hover:border-primary/50 transition-all duration-300"
+                  >
                     {loadingDettaglio ? (
-                      <span className="loading loading-spinner loading-xs"></span>
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        <Eye className="w-4 h-4 mr-1" />
+                        <Eye className="w-4 h-4 mr-2" />
                         Visualizza
                       </>
                     )}
-                  </button>
-                </div>
-              </div>
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
 
             {pianiRecenti.length > 5 && (
-              <div className="text-center pt-4">
-                <button
-                  onClick={caricaPianiRecenti}
-                  className="btn btn-outline btn-sm">
+              <div className="text-center pt-6">
+                <Button variant="ghost" onClick={caricaPianiRecenti} className="text-muted-foreground hover:text-primary">
                   Carica altri piani ({pianiRecenti.length - 5} rimanenti)
-                </button>
+                </Button>
               </div>
             )}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
+

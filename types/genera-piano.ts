@@ -57,6 +57,20 @@ export interface PreferenzaRilevata {
   percentuale: number;
 }
 
+export interface PastoRetrieval {
+  id: number;
+  descrizione: string;
+  tipo_pasto: string;
+  score_finale: number;
+  dettagli: {
+    frequenza?: number;
+    score_frequenza: number;
+    similarita?: number;
+    score_similarita: number;
+    fonte: "frequenza" | "similarita" | "entrambi";
+  };
+}
+
 // === INTERFACCE FASE 6: Calcolo Nutrizionale ===
 
 // Valori nutrizionali calcolati per un singolo pasto

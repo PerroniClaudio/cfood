@@ -1,39 +1,170 @@
 @import "tailwindcss";
-@plugin "daisyui" {
-  themes: cfood;
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Modern Indigo/Violet Theme - Light Mode */
+  --background: 210 40% 98%; /* Soft blue-gray white */
+  --foreground: 222 47% 11%; /* Deep navy black */
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  --primary: 252 59% 50%; /* Vibrant Violet */
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 252 59% 96%; /* Very light violet for hover */
+  --accent-foreground: 222 47% 11%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 252 59% 50%;
+
+  --radius: 0.75rem;
+
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
 }
 
-@plugin "daisyui/theme" {
-  name: "cfood";
-  default: false;
-  prefersdark: false;
-  color-scheme: "dark";
-  --color-base-100: oklch(28.822% 0.022 277.508);
-  --color-base-200: oklch(26.805% 0.02 277.508);
-  --color-base-300: oklch(24.787% 0.019 277.508);
-  --color-base-content: oklch(97.747% 0.007 106.545);
-  --color-primary: oklch(75.461% 0.183 346.812);
-  --color-primary-content: oklch(15.092% 0.036 346.812);
-  --color-secondary: oklch(74.202% 0.148 301.883);
-  --color-secondary-content: oklch(14.84% 0.029 301.883);
-  --color-accent: oklch(83.392% 0.124 66.558);
-  --color-accent-content: oklch(16.678% 0.024 66.558);
-  --color-neutral: oklch(39.445% 0.032 275.524);
-  --color-neutral-content: oklch(87.889% 0.006 275.524);
-  --color-info: oklch(88.263% 0.093 212.846);
-  --color-info-content: oklch(17.652% 0.018 212.846);
-  --color-success: oklch(87.099% 0.219 148.024);
-  --color-success-content: oklch(17.419% 0.043 148.024);
-  --color-warning: oklch(95.533% 0.134 112.757);
-  --color-warning-content: oklch(19.106% 0.026 112.757);
-  --color-error: oklch(68.22% 0.206 24.43);
-  --color-error-content: oklch(13.644% 0.041 24.43);
-  --radius-selector: 1rem;
-  --radius-field: 0.5rem;
-  --radius-box: 1rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
+.dark {
+  /* Modern Indigo/Violet Theme - Dark Mode */
+  --background: 222 47% 11%; /* Deep navy black */
+  --foreground: 210 40% 98%;
+
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 252 59% 60%; /* Lighter violet for dark mode */
+  --primary-foreground: 222 47% 11%;
+
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 252 59% 60%;
+
+  --chart-1: 220 70% 50%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Custom Animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-slide-up: slide-up 0.5s ease-out;
+  --animate-pulse-subtle: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes accordion-down {
+    from { height: 0 }
+    to { height: var(--radix-accordion-content-height) }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height) }
+    to { height: 0 }
+  }
+  @keyframes fade-in {
+    from { opacity: 0 }
+    to { opacity: 1 }
+  }
+  @keyframes slide-up {
+    from { transform: translateY(10px); opacity: 0 }
+    to { transform: translateY(0); opacity: 1 }
+  }
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1 }
+    50% { opacity: 0.8 }
+  }
+}
+
+/* Base Styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+  }
+}
+
+/* Utility Classes for Glassmorphism & Polish */
+@layer utilities {
+  .glass {
+    @apply bg-white/70 dark:bg-black/70 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-white/50 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all duration-300;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600;
+  }
+  
+  .hover-lift {
+    @apply transition-transform duration-300 hover:-translate-y-1;
+  }
 }

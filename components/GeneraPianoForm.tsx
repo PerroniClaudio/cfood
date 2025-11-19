@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, AlertCircle } from "lucide-react";
+import { Sparkles, AlertCircle, Loader2, Calendar, Utensils, Ban } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 // Tipi per il piano alimentare (allineati al nuovo formato)
 interface PastoInfo {
@@ -98,120 +109,131 @@ export default function GeneraPianoForm({
   };
 
   return (
-    <div className="p-8 text-gray-900">
-      <div className="mb-6">
-        <p className="text-gray-600">
-          Crea un piano settimanale personalizzato basato su dati storici e
-          preferenze
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Periodo Giorni */}
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-900">
-            Periodo di analisi storica
-          </label>
-          <input
-            type="number"
-            min="7"
-            max="365"
-            value={periodoGiorni}
-            onChange={(e) => setPeriodoGiorni(Number(e.target.value))}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            placeholder="Inserisci il numero di giorni (7-365)"
-          />
-          <p className="text-sm text-gray-500">
-            Il sistema analizzerà i piani creati negli ultimi {periodoGiorni}{" "}
-            giorni per personalizzare le raccomandazioni
-          </p>
-        </div>
-
-        {/* Preferenze */}
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-900">
-            Preferenze alimentari
-            <span className="text-gray-500 font-normal ml-1">(opzionale)</span>
-          </label>
-          <input
-            type="text"
-            value={preferenze}
-            onChange={(e) => setPreferenze(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            placeholder="es: vegetariano, mediterraneo, biologico, senza glutine"
-          />
-          <p className="text-sm text-gray-500">
-            Separa le preferenze con virgole. L&apos;AI le utilizzerà per
-            personalizzare i suggerimenti
-          </p>
-        </div>
-
-        {/* Esclusioni */}
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-900">
-            Esclusioni alimentari
-            <span className="text-gray-500 font-normal ml-1">(opzionale)</span>
-          </label>
-          <input
-            type="text"
-            value={esclusioni}
-            onChange={(e) => setEsclusioni(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            placeholder="es: glutine, lattosio, uova, crostacei, frutta secca"
-          />
-          <p className="text-sm text-gray-500">
-            Indica allergie, intolleranze o alimenti da evitare. Saranno
-            completamente esclusi dal piano
-          </p>
-        </div>
-
-        {/* Errore */}
-        {errore && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-1 bg-red-100 rounded-full">
-                <AlertCircle className="w-4 h-4 text-red-600" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-red-900 text-sm">
-                  Errore nella generazione
-                </h4>
-                <p className="text-red-700 text-sm mt-1">{errore}</p>
-              </div>
-            </div>
+    <Card className="w-full border-0 shadow-none bg-transparent">
+      <CardHeader className="px-0 pt-0 pb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+            <Sparkles className="w-5 h-5" />
           </div>
-        )}
-
-        {/* Submit Button */}
-        <div className="pt-4 flex gap-3">
-          <button
-            type="button"
-            onClick={onCloseAction}
-            className="flex-1 py-3 px-6 rounded-lg font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">
-            Annulla
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className={`flex-1 py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
-              loading
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-[1.02] shadow-lg hover:shadow-xl"
-            }`}>
-            {loading ? (
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Generazione in corso...</span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-2">
-                <Sparkles className="w-5 h-5" />
-                <span>Genera Piano Alimentare AI</span>
-              </div>
-            )}
-          </button>
+          <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
+            Genera Piano Alimentare
+          </CardTitle>
         </div>
-      </form>
-    </div>
+        <CardDescription className="text-base">
+          Crea un piano settimanale personalizzato basato su dati storici e
+          preferenze.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="px-0 space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Periodo Giorni */}
+          <div className="space-y-2 group">
+            <Label htmlFor="periodo" className="text-sm font-medium flex items-center gap-2 text-foreground/80 group-focus-within:text-primary transition-colors">
+              <Calendar className="w-4 h-4" />
+              Periodo di analisi storica
+            </Label>
+            <div className="relative">
+              <Input
+                id="periodo"
+                type="number"
+                min="7"
+                max="365"
+                value={periodoGiorni}
+                onChange={(e) => setPeriodoGiorni(Number(e.target.value))}
+                className="pl-4 transition-all duration-300 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                placeholder="Inserisci il numero di giorni (7-365)"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground pl-1">
+              Il sistema analizzerà i piani creati negli ultimi <span className="font-medium text-foreground">{periodoGiorni}</span> giorni.
+            </p>
+          </div>
+
+          {/* Preferenze */}
+          <div className="space-y-2 group">
+            <Label htmlFor="preferenze" className="text-sm font-medium flex items-center gap-2 text-foreground/80 group-focus-within:text-primary transition-colors">
+              <Utensils className="w-4 h-4" />
+              Preferenze alimentari
+              <span className="text-muted-foreground font-normal text-xs ml-auto">
+                (opzionale)
+              </span>
+            </Label>
+            <Input
+              id="preferenze"
+              type="text"
+              value={preferenze}
+              onChange={(e) => setPreferenze(e.target.value)}
+              className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              placeholder="es: vegetariano, mediterraneo, biologico"
+            />
+            <p className="text-xs text-muted-foreground pl-1">
+              Separa le preferenze con virgole.
+            </p>
+          </div>
+
+          {/* Esclusioni */}
+          <div className="space-y-2 group">
+            <Label htmlFor="esclusioni" className="text-sm font-medium flex items-center gap-2 text-foreground/80 group-focus-within:text-destructive transition-colors">
+              <Ban className="w-4 h-4" />
+              Esclusioni alimentari
+              <span className="text-muted-foreground font-normal text-xs ml-auto">
+                (opzionale)
+              </span>
+            </Label>
+            <Input
+              id="esclusioni"
+              type="text"
+              value={esclusioni}
+              onChange={(e) => setEsclusioni(e.target.value)}
+              className="transition-all duration-300 focus:ring-2 focus:ring-destructive/20 focus:border-destructive"
+              placeholder="es: glutine, lattosio, uova"
+            />
+            <p className="text-xs text-muted-foreground pl-1">
+              Indica allergie o alimenti da evitare.
+            </p>
+          </div>
+
+          {/* Errore */}
+          {errore && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center gap-3 text-destructive animate-in slide-in-from-top-2">
+              <AlertCircle className="w-4 h-4" />
+              <div className="text-sm font-medium">{errore}</div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 hover:bg-muted/50 transition-colors"
+              onClick={onCloseAction}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="submit"
+              className={cn(
+                "flex-1 text-white border-0 transition-all duration-300 shadow-lg hover:shadow-primary/25",
+                "bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90",
+                loading && "opacity-80"
+              )}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generazione in corso...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Genera Piano AI
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
