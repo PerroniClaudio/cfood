@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 // Interfacce per i tipi
 interface Piano {
@@ -236,8 +237,8 @@ export default function PianoPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="bg-destructive text-destructive-foreground border-2 border-border shadow-neo p-8 max-w-md w-full">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-white border-2 border-black rounded-none shadow-neo-sm">
-              <AlertCircle className="w-6 h-6 text-black" />
+            <div className="p-2 bg-card border-2 border-border rounded-none shadow-neo-sm">
+              <AlertCircle className="w-6 h-6 text-foreground" />
             </div>
             <h3 className="text-2xl font-black uppercase">Errore</h3>
           </div>
@@ -245,7 +246,7 @@ export default function PianoPage() {
           <Button
             onClick={() => router.push("/")}
             variant="outline"
-            className="w-full bg-white text-black border-2 border-black hover:bg-gray-100 font-black uppercase"
+            className="w-full bg-card text-foreground border-2 border-border hover:bg-accent font-black uppercase"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Torna alla Homepage
@@ -263,7 +264,7 @@ export default function PianoPage() {
     <div className="min-h-screen bg-background p-4 md:p-8 font-sans">
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Header con navigazione */}
-        <div className="mb-6">
+        <div className="mb-6 flex justify-between items-center">
           <Button
             onClick={() => router.push("/")}
             variant="outline"
@@ -272,6 +273,7 @@ export default function PianoPage() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Torna alla Homepage
           </Button>
+          <ThemeToggle />
         </div>
 
         {/* Header del Piano */}
@@ -336,7 +338,7 @@ export default function PianoPage() {
                   g carboidrati
                 </div>
               </div>
-              <div className="bg-white dark:bg-zinc-800 text-foreground p-4 border-2 border-border shadow-neo-sm hover:-translate-y-1 transition-transform">
+              <div className="bg-card text-foreground p-4 border-2 border-border shadow-neo-sm hover:-translate-y-1 transition-transform">
                 <div className="text-3xl font-black">
                   {Math.round(
                     dettagliPiano.giorni.reduce(
@@ -429,7 +431,7 @@ export default function PianoPage() {
                               // Colori badge basati sul tipo pasto
                               const badgeClass =
                                 pasto.tipoPasto === "colazione"
-                                  ? "bg-muted text-muted-foreground border-border"
+                                  ? "bg-muted text-black border-border"
                                   : pasto.tipoPasto === "pranzo"
                                   ? "bg-primary text-primary-foreground border-border"
                                   : "bg-secondary text-secondary-foreground border-border";
@@ -462,7 +464,7 @@ export default function PianoPage() {
                                   </div>
 
                                   {pasto.noteAggiuntive && (
-                                    <div className="mt-3 text-xs font-medium bg-muted p-2 border-2 border-border flex gap-2">
+                                    <div className="mt-3 text-xs font-medium bg-muted text-black p-2 border-2 border-border flex gap-2">
                                       <span className="text-lg">💡</span>
                                       <span>{pasto.noteAggiuntive}</span>
                                     </div>

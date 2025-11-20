@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Modal from "../components/Modal";
 import GeneraPianoForm from "../components/GeneraPianoForm";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface PianoRecente {
   id: number;
@@ -80,7 +81,10 @@ export default function Home() {
     <div className="min-h-screen bg-background p-8 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex justify-center mb-12">
+        <div className="flex justify-center mb-12 relative">
+          <div className="absolute right-0 top-0">
+            <ThemeToggle />
+          </div>
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-4 mb-4">
               <div className="p-4 bg-primary border-2 border-border shadow-neo rounded-none rotate-3 hover:rotate-6 transition-transform">
@@ -90,7 +94,7 @@ export default function Home() {
                 CFood
               </h1>
             </div>
-            <p className="text-xl font-bold max-w-2xl mx-auto border-2 border-border p-4 bg-white dark:bg-zinc-900 shadow-neo-sm rotate-1">
+            <p className="text-xl font-bold max-w-2xl mx-auto border-2 border-border p-4 bg-card shadow-neo-sm rotate-1">
               Generatore di piani alimentari intelligente basato su AI e
               analisi storica
             </p>
@@ -127,8 +131,8 @@ export default function Home() {
         {risultato && (
           <div className="bg-primary text-primary-foreground border-2 border-border shadow-neo p-6 animate-in slide-in-from-top-4">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-white border-2 border-black rounded-none shadow-neo-sm">
-                <Sparkles className="w-6 h-6 text-black" />
+              <div className="p-2 bg-card border-2 border-border rounded-none shadow-neo-sm">
+                <Sparkles className="w-6 h-6 text-foreground" />
               </div>
               <h3 className="text-2xl font-black uppercase">
                 Piano generato con successo!
@@ -141,13 +145,13 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowRawData(!showRawData)}
-                className="bg-white text-black px-4 py-2 font-bold border-2 border-black shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
+                className="bg-card text-foreground px-4 py-2 font-bold border-2 border-border shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
               >
                 {showRawData ? "Nascondi" : "Mostra"} dati tecnici
               </button>
             </div>
             {showRawData && (
-              <div className="mt-4 bg-black text-white border-2 border-white p-4 overflow-hidden">
+              <div className="mt-4 bg-foreground text-background border-2 border-background p-4 overflow-hidden">
                 <pre className="text-xs overflow-auto max-h-96 font-mono">
                   <code>{JSON.stringify(risultato, null, 2)}</code>
                 </pre>
@@ -159,7 +163,7 @@ export default function Home() {
         {/* Info Card */}
         <div className="bg-secondary text-secondary-foreground border-2 border-border shadow-neo p-6">
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-white border-2 border-border shadow-neo-sm shrink-0">
+            <div className="p-3 bg-card border-2 border-border shadow-neo-sm shrink-0">
               <Info className="w-8 h-8 text-foreground" />
             </div>
             <div>
@@ -169,22 +173,22 @@ export default function Home() {
 
               <div className="space-y-3 text-base font-medium">
                 <p>
-                  <span className="font-black bg-white px-1 border-2 border-black mr-2">1. Analisi Storica:</span> Il
+                  <span className="font-black bg-card text-card-foreground px-1 border-2 border-border mr-2">1. Analisi Storica:</span> Il
                   sistema analizza i piani alimentari precedenti per comprendere
                   pattern e preferenze
                 </p>
                 <p>
-                  <span className="font-black bg-white px-1 border-2 border-black mr-2">2. Retrieval Ibrido:</span>{" "}
+                  <span className="font-black bg-card text-card-foreground px-1 border-2 border-border mr-2">2. Retrieval Ibrido:</span>{" "}
                   Combina frequenza storica (70%) e similarità semantica (30%)
                   per selezionare i migliori pasti
                 </p>
                 <p>
-                  <span className="font-black bg-white px-1 border-2 border-black mr-2">3. Generazione AI:</span>{" "}
+                  <span className="font-black bg-card text-card-foreground px-1 border-2 border-border mr-2">3. Generazione AI:</span>{" "}
                   Utilizza AWS Bedrock per creare un piano personalizzato basato
                   sui dati raccolti
                 </p>
                 <p>
-                  <span className="font-black bg-white px-1 border-2 border-black mr-2">4. Calcolo Nutrizionale:</span>{" "}
+                  <span className="font-black bg-card text-card-foreground px-1 border-2 border-border mr-2">4. Calcolo Nutrizionale:</span>{" "}
                   Analizza automaticamente i valori nutrizionali di ogni pasto
                   del piano
                 </p>
@@ -203,7 +207,7 @@ export default function Home() {
             <button
               onClick={caricaPianiRecenti}
               disabled={loadingPiani}
-              className="bg-white text-foreground px-4 py-2 font-bold border-2 border-border shadow-neo-sm hover:shadow-neo hover:-translate-y-0.5 transition-all disabled:opacity-50"
+              className="bg-card text-foreground px-4 py-2 font-bold border-2 border-border shadow-neo-sm hover:shadow-neo hover:-translate-y-0.5 transition-all disabled:opacity-50"
             >
               {loadingPiani ? (
                 <div className="flex items-center gap-2">
@@ -240,7 +244,7 @@ export default function Home() {
               {pianiRecenti.map((piano) => (
                 <div
                   key={piano.id}
-                  className="bg-white dark:bg-zinc-900 border-2 border-border p-6 hover:shadow-neo hover:-translate-y-1 transition-all duration-200 cursor-pointer group"
+                  className="bg-card border-2 border-border p-6 hover:shadow-neo hover:-translate-y-1 transition-all duration-200 cursor-pointer group"
                   onClick={() => navigaToPiano(piano.id)}
                 >
                   <div className="flex flex-col md:flex-row justify-between gap-4">
@@ -275,7 +279,7 @@ export default function Home() {
                               : "N/A"}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1 bg-muted px-2 py-0.5 border-2 border-border">
+                        <div className="flex items-center gap-1 bg-muted text-black px-2 py-0.5 border-2 border-border">
                           <span>👨‍🍳 {piano.autore}</span>
                         </div>
                       </div>

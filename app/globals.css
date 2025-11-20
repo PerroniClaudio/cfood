@@ -2,7 +2,7 @@
 
 @plugin "tailwindcss-animate";
 
-@custom-variant dark (&:where(.dark, .dark *));
+
 
 :root {
   /* Neobrutalist Theme - Light Mode */
@@ -58,7 +58,7 @@
   --secondary-foreground: 0 0% 0%;
 
   --muted: 60 100% 50%; /* Yellow */
-  --muted-foreground: 0 0% 0%;
+  --muted-foreground: 0 0% 80%; /* Light Gray for contrast on dark bg */
 
   --accent: 180 100% 50%; /* Cyan */
   --accent-foreground: 0 0% 0%;
@@ -66,7 +66,7 @@
   --destructive: 0 100% 60%;
   --destructive-foreground: 0 0% 0%;
 
-  --border: 0 0% 100%; /* White border in dark mode? Or keep black if bg is light? Let's try White for contrast against dark bg */
+  --border: 0 0% 100%; /* White border for contrast */
   --input: 260 20% 10%;
   --ring: 0 0% 100%;
   
