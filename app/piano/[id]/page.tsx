@@ -322,13 +322,13 @@ export default function PianoPage() {
         )}
 
         {/* THE MENU CARD */}
-        <div className="bg-card text-card-foreground border-4 border-border shadow-neo-xl p-8 md:p-16 relative rotate-1 transition-transform hover:rotate-0 duration-500 mb-20">
+        <div className="bg-card text-card-foreground border-4 border-border shadow-neo-xl p-4 md:p-16 relative rotate-1 transition-transform hover:rotate-0 duration-500 mb-20">
           {/* Decorative Elements */}
           <div className="absolute top-[-12px] left-1/2 -translate-x-1/2 w-6 h-6 bg-foreground rounded-full shadow-sm z-20 border-2 border-background"></div>
 
           {/* Menu Header */}
-          <div className="text-center mb-16 border-b-4 border-double border-border pb-8">
-            <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter mb-4 leading-none">
+          <div className="text-center mb-12 md:mb-16 border-b-4 border-double border-border pb-8">
+            <h1 className="text-3xl md:text-7xl font-black uppercase tracking-tighter mb-4 leading-none">
               Menu Settimanale
             </h1>
             <div className="flex flex-col items-center gap-2">
@@ -379,9 +379,9 @@ export default function PianoPage() {
                   return (
                     <div key={index} className="relative">
                       {/* Day Header */}
-                      <div className="flex justify-center mb-10">
-                        <h2 className="text-3xl md:text-4xl font-black uppercase text-center relative inline-block">
-                          <span className="bg-foreground text-background px-8 py-2 transform -rotate-2 inline-block shadow-neo border-2 border-transparent">
+                      <div className="flex justify-center mb-6 md:mb-10">
+                        <h2 className="text-2xl md:text-4xl font-black uppercase text-center relative inline-block">
+                          <span className="bg-foreground text-background px-6 md:px-8 py-2 transform -rotate-2 inline-block shadow-neo border-2 border-transparent">
                             {giorno.giorno}
                           </span>
                         </h2>
@@ -401,12 +401,12 @@ export default function PianoPage() {
                               return (
                                 <div key={pastoIndex} className="group relative">
                                   {/* Meal Header Line */}
-                                  <div className="flex items-baseline justify-between gap-4 mb-2">
-                                    <h3 className="font-black text-xl md:text-2xl uppercase shrink-0 group-hover:text-primary transition-colors">
+                                  <div className="flex items-baseline justify-between gap-2 md:gap-4 mb-2">
+                                    <h3 className="font-black text-lg md:text-2xl uppercase shrink-0 group-hover:text-primary transition-colors">
                                       {pasto.tipoPasto}
                                     </h3>
-                                    <div className="flex-grow border-b-4 border-dotted border-border/30 relative -top-2"></div>
-                                    <span className="font-mono font-bold text-lg md:text-xl shrink-0">
+                                    <div className="flex-grow border-b-4 border-dotted border-border/30 relative -top-1 md:-top-2"></div>
+                                    <span className="font-mono font-bold text-base md:text-xl shrink-0">
                                       {pasto.calorieStimate} kcal
                                     </span>
                                   </div>
@@ -418,7 +418,7 @@ export default function PianoPage() {
                                     </p>
                                     
                                     {/* Macros & Notes */}
-                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                                    <div className="flex flex-wrap items-center gap-x-3 md:gap-x-4 gap-y-2 text-[10px] md:text-xs font-mono text-muted-foreground uppercase tracking-wider">
                                       <span>P: {pasto.proteineG}g</span>
                                       <span className="text-border">•</span>
                                       <span>C: {pasto.carboidratiG}g</span>
@@ -426,7 +426,7 @@ export default function PianoPage() {
                                       <span>F: {pasto.grassiG}g</span>
                                       
                                       {pasto.noteAggiuntive && (
-                                        <span className="bg-muted text-black px-2 py-0.5 font-bold ml-2 border border-black/10">
+                                        <span className="bg-muted text-black px-2 py-0.5 font-bold ml-0 md:ml-2 border border-black/10 block w-full md:w-auto md:inline mt-1 md:mt-0">
                                           {pasto.noteAggiuntive}
                                         </span>
                                       )}
@@ -434,7 +434,7 @@ export default function PianoPage() {
                                   </div>
 
                                   {/* Reroll Action */}
-                                  <div className="absolute right-0 top-8 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-4 group-hover:translate-x-0">
+                                  <div className="absolute right-0 top-0 md:top-8 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 md:translate-x-4 md:group-hover:translate-x-0">
                                     <Button
                                       size="icon"
                                       variant="ghost"
@@ -443,7 +443,7 @@ export default function PianoPage() {
                                         handleRerollPasto(pasto.id);
                                       }}
                                       disabled={rerollingPastoId === pasto.id}
-                                      className="h-8 w-8 rounded-full border-2 border-border hover:bg-foreground hover:text-background"
+                                      className="h-8 w-8 rounded-full border-2 border-border bg-background hover:bg-foreground hover:text-background shadow-neo-sm"
                                       title="Cambia piatto"
                                     >
                                       {rerollingPastoId === pasto.id ? (
