@@ -98,33 +98,33 @@ export default function LastPianoViewer() {
   }
 
   return (
-    <Card className="w-full mt-10 border-0 shadow-none bg-transparent">
-      <CardHeader className="px-0 pb-6">
+    <Card className="w-full mt-10 border-2 border-border shadow-neo bg-card">
+      <CardHeader className="px-6 pb-6 border-b-2 border-border">
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <div className="p-2 border-2 border-border bg-secondary text-secondary-foreground shadow-neo-sm">
             <History className="w-5 h-5" />
           </div>
-          <CardTitle className="text-2xl font-bold text-foreground">Piani Alimentari Recenti</CardTitle>
+          <CardTitle className="text-2xl font-black text-foreground uppercase tracking-tight">Piani Alimentari Recenti</CardTitle>
         </div>
-        <CardDescription className="text-base">
+        <CardDescription className="text-base font-medium text-muted-foreground">
           Visualizza e gestisci i tuoi piani alimentari generati in precedenza.
         </CardDescription>
       </CardHeader>
-      <CardContent className="px-0">
+      <CardContent className="p-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
-            <p className="text-muted-foreground text-sm animate-pulse">Caricamento piani...</p>
+            <p className="text-muted-foreground text-sm font-bold animate-pulse">CARICAMENTO PIANI...</p>
           </div>
         ) : pianiRecenti.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-border/60 rounded-xl bg-muted/5">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calendar className="w-8 h-8 text-muted-foreground" />
+          <div className="text-center py-16 border-2 border-dashed border-border rounded-lg bg-muted/20">
+            <div className="w-16 h-16 bg-muted border-2 border-border rounded-full flex items-center justify-center mx-auto mb-4 shadow-neo-sm">
+              <Calendar className="w-8 h-8 text-foreground" />
             </div>
-            <h3 className="text-lg font-medium text-foreground mb-1">
-              Nessun piano trovato
+            <h3 className="text-lg font-bold text-foreground mb-1">
+              NESSUN PIANO TROVATO
             </h3>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto font-medium">
               Non hai ancora generato nessun piano alimentare. Usa il form sopra per iniziare.
             </p>
           </div>
@@ -133,21 +133,21 @@ export default function LastPianoViewer() {
             {pianiRecenti.slice(0, 5).map((piano, index) => (
               <Card
                 key={piano.id}
-                className="group overflow-hidden border-border/40 bg-card/50 hover:bg-card hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2"
+                className="group overflow-hidden border-2 border-border bg-card hover:bg-accent hover:text-accent-foreground hover:shadow-neo hover:-translate-y-1 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">{piano.nome}</h4>
-                      <Badge variant="secondary" className="text-[10px] font-normal bg-secondary/50">
+                      <h4 className="font-bold text-lg group-hover:text-accent-foreground transition-colors">{piano.nome}</h4>
+                      <Badge variant="secondary" className="text-[10px] font-bold border-2 border-border shadow-neo-sm rounded-sm">
                         {piano.autore}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-1 group-hover:text-muted-foreground/80 transition-colors">
+                    <p className="text-sm text-muted-foreground font-medium line-clamp-1 group-hover:text-accent-foreground/80 transition-colors">
                       {piano.descrizione}
                     </p>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground/70 pt-1">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground/70 pt-1 font-bold">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
                         {new Date(piano.dataCreazione).toLocaleDateString(
@@ -160,14 +160,14 @@ export default function LastPianoViewer() {
                   <Button
                     onClick={() => visualizzaPiano(piano.id)}
                     disabled={loadingDettaglio}
-                    className="shrink-0 bg-background hover:bg-primary hover:text-primary-foreground text-foreground border border-input shadow-sm group-hover:border-primary/50 transition-all duration-300"
+                    className="shrink-0 bg-background text-foreground border-2 border-border shadow-neo-sm hover:shadow-neo hover:-translate-y-0.5 transition-all duration-200 font-bold"
                   >
                     {loadingDettaglio ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
                         <Eye className="w-4 h-4 mr-2" />
-                        Visualizza
+                        VISUALIZZA
                       </>
                     )}
                   </Button>
@@ -177,8 +177,8 @@ export default function LastPianoViewer() {
 
             {pianiRecenti.length > 5 && (
               <div className="text-center pt-6">
-                <Button variant="ghost" onClick={caricaPianiRecenti} className="text-muted-foreground hover:text-primary">
-                  Carica altri piani ({pianiRecenti.length - 5} rimanenti)
+                <Button variant="ghost" onClick={caricaPianiRecenti} className="text-muted-foreground hover:text-primary font-bold border-2 border-transparent hover:border-border hover:shadow-neo transition-all">
+                  CARICA ALTRI PIANI ({pianiRecenti.length - 5} RIMANENTI)
                 </Button>
               </div>
             )}

@@ -72,31 +72,31 @@ const PastoCard = ({
   const getColorScheme = (tipo: string) => {
     switch (tipo) {
       case "colazione":
-        return "border-amber-200/50 bg-amber-50/40 hover:bg-amber-50/80 dark:bg-amber-950/10 dark:border-amber-900/30 dark:hover:bg-amber-950/20";
+        return "bg-white dark:bg-zinc-900 border-2 border-border hover:shadow-neo hover:-translate-y-1";
       case "pranzo":
-        return "border-blue-200/50 bg-blue-50/40 hover:bg-blue-50/80 dark:bg-blue-950/10 dark:border-blue-900/30 dark:hover:bg-blue-950/20";
+        return "bg-white dark:bg-zinc-900 border-2 border-border hover:shadow-neo hover:-translate-y-1";
       case "cena":
-        return "border-purple-200/50 bg-purple-50/40 hover:bg-purple-50/80 dark:bg-purple-950/10 dark:border-purple-900/30 dark:hover:bg-purple-950/20";
+        return "bg-white dark:bg-zinc-900 border-2 border-border hover:shadow-neo hover:-translate-y-1";
       default:
-        return "border-muted bg-muted/40";
+        return "bg-muted border-2 border-border";
     }
   };
 
-  const getBadgeVariant = (tipo: string) => {
+  const getBadgeStyle = (tipo: string) => {
     switch (tipo) {
-      case "colazione": return "secondary"; // Amber-ish
-      case "pranzo": return "default"; // Blue-ish (primary)
-      case "cena": return "outline"; // Purple-ish
-      default: return "secondary";
+      case "colazione": return "bg-muted text-muted-foreground border-2 border-border";
+      case "pranzo": return "bg-primary text-primary-foreground border-2 border-border";
+      case "cena": return "bg-secondary text-secondary-foreground border-2 border-border";
+      default: return "bg-muted text-muted-foreground border-2 border-border";
     }
   };
 
   return (
     <Card
       className={cn(
-        "transition-all duration-300 cursor-pointer group overflow-hidden",
+        "transition-all duration-200 cursor-pointer group overflow-hidden rounded-lg",
         getColorScheme(tipoPasto),
-        isExpanded ? "shadow-md ring-1 ring-primary/10 scale-[1.01]" : "shadow-sm hover:shadow-md"
+        isExpanded ? "shadow-neo -translate-y-1 ring-2 ring-border" : "shadow-none"
       )}
       onClick={onToggle}
     >
@@ -108,28 +108,26 @@ const PastoCard = ({
               <Badge 
                 variant="outline" 
                 className={cn(
-                  "uppercase text-[10px] tracking-wider font-bold border-primary/20",
-                  tipoPasto === "colazione" && "text-amber-600 dark:text-amber-400 bg-amber-100/50 dark:bg-amber-900/20",
-                  tipoPasto === "pranzo" && "text-blue-600 dark:text-blue-400 bg-blue-100/50 dark:bg-blue-900/20",
-                  tipoPasto === "cena" && "text-purple-600 dark:text-purple-400 bg-purple-100/50 dark:bg-purple-900/20"
+                  "uppercase text-[10px] tracking-wider font-black rounded-sm shadow-neo-sm",
+                  getBadgeStyle(tipoPasto)
                 )}
               >
                 {tipoPasto}
               </Badge>
               {pasto.difficolta && (
-                <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur-sm">
+                <Badge variant="outline" className="text-[10px] font-bold bg-background border-2 border-border shadow-neo-sm">
                   {pasto.difficolta}
                 </Badge>
               )}
             </div>
-            <h4 className="font-semibold text-lg leading-tight text-foreground group-hover:text-primary transition-colors">
+            <h4 className="font-black text-lg leading-tight text-foreground uppercase">
               {pasto.nome}
             </h4>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 rounded-full shrink-0 text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-all"
+            className="h-8 w-8 rounded-md border-2 border-transparent hover:border-border hover:shadow-neo transition-all"
             onClick={(e) => {
               e.stopPropagation();
               onToggle();
@@ -144,20 +142,20 @@ const PastoCard = ({
         </div>
 
         {/* Info rapide */}
-        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-bold border-t-2 border-border/10 pt-3">
           <div className="flex items-center gap-1.5">
-            <Flame className="w-4 h-4 text-orange-500" />
-            <span className="font-medium text-foreground">{pasto.calorie_stimate} <span className="text-xs text-muted-foreground font-normal">kcal</span></span>
+            <Flame className="w-4 h-4 text-foreground" />
+            <span className="text-foreground">{pasto.calorie_stimate} <span className="text-xs text-muted-foreground font-normal uppercase">kcal</span></span>
           </div>
           {pasto.tempo_preparazione_minuti && (
             <div className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-blue-500" />
-              <span>{pasto.tempo_preparazione_minuti} <span className="text-xs text-muted-foreground font-normal">min</span></span>
+              <Clock className="w-4 h-4 text-foreground" />
+              <span>{pasto.tempo_preparazione_minuti} <span className="text-xs text-muted-foreground font-normal uppercase">min</span></span>
             </div>
           )}
           <div className="flex items-center gap-1.5">
-            <Scale className="w-4 h-4 text-green-500" />
-            <span className="text-xs font-medium">
+            <Scale className="w-4 h-4 text-foreground" />
+            <span className="text-xs font-bold">
               <span className="text-foreground">{pasto.macronutrienti.proteine_g}g</span> P • 
               <span className="text-foreground ml-1">{pasto.macronutrienti.carboidrati_g}g</span> C • 
               <span className="text-foreground ml-1">{pasto.macronutrienti.grassi_g}g</span> G
@@ -168,27 +166,27 @@ const PastoCard = ({
         {/* Contenuto espandibile */}
         {isExpanded && (
           <div 
-            className="mt-5 pt-5 border-t border-border/50 space-y-5 animate-in slide-in-from-top-2 duration-300"
+            className="mt-5 pt-5 border-t-2 border-border space-y-5 animate-in slide-in-from-top-2 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Descrizione */}
-            <div className="bg-background/40 p-3 rounded-lg border border-border/30">
-              <h5 className="font-medium text-sm mb-1.5 flex items-center gap-2 text-primary">
+            <div className="bg-muted/30 p-4 rounded-none border-2 border-border shadow-neo-sm">
+              <h5 className="font-black text-sm mb-1.5 flex items-center gap-2 text-foreground uppercase">
                 <Info className="w-3.5 h-3.5" /> Descrizione
               </h5>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm text-foreground font-medium leading-relaxed">
                 {pasto.descrizione_dettagliata}
               </p>
             </div>
 
             {/* Ingredienti */}
             <div>
-              <h5 className="font-medium text-sm mb-2.5 text-foreground/90">Ingredienti</h5>
+              <h5 className="font-black text-sm mb-2.5 text-foreground uppercase border-b-2 border-border inline-block">Ingredienti</h5>
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {pasto.ingredienti.map((ingrediente, idx) => (
-                  <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2 group/ing">
-                    <span className="text-primary/40 mt-1.5 group-hover/ing:text-primary transition-colors">•</span>
-                    <span className="group-hover/ing:text-foreground transition-colors">{ingrediente}</span>
+                  <li key={idx} className="text-sm font-medium text-foreground flex items-start gap-2">
+                    <span className="text-primary mt-1.5 font-bold">■</span>
+                    <span>{ingrediente}</span>
                   </li>
                 ))}
               </ul>
@@ -196,8 +194,8 @@ const PastoCard = ({
 
             {/* Preparazione */}
             <div>
-              <h5 className="font-medium text-sm mb-1.5 text-foreground/90">Preparazione</h5>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <h5 className="font-black text-sm mb-1.5 text-foreground uppercase border-b-2 border-border inline-block">Preparazione</h5>
+              <p className="text-sm text-foreground font-medium leading-relaxed">
                 {pasto.metodo_preparazione}
               </p>
             </div>
@@ -207,8 +205,8 @@ const PastoCard = ({
               pasto.benefici_nutrizionali) && (
               <div className="grid md:grid-cols-2 gap-4 pt-2">
                 {pasto.micronutrienti_principali && (
-                  <div className="bg-background/60 rounded-lg p-4 border border-border/50 shadow-sm">
-                    <h5 className="font-medium text-xs uppercase tracking-wider text-muted-foreground mb-3">
+                  <div className="bg-background rounded-none p-4 border-2 border-border shadow-neo-sm">
+                    <h5 className="font-black text-xs uppercase tracking-wider text-foreground mb-3">
                       Micronutrienti
                     </h5>
                     <div className="flex flex-wrap gap-1.5">
@@ -216,7 +214,7 @@ const PastoCard = ({
                         <Badge 
                           key={idx} 
                           variant="outline" 
-                          className="text-xs font-normal bg-background hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-colors"
+                          className="text-xs font-bold bg-accent text-accent-foreground border-2 border-border rounded-sm"
                         >
                           {micro}
                         </Badge>
@@ -225,11 +223,11 @@ const PastoCard = ({
                   </div>
                 )}
                 {pasto.benefici_nutrizionali && (
-                  <div className="bg-background/60 rounded-lg p-4 border border-border/50 shadow-sm">
-                    <h5 className="font-medium text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                  <div className="bg-background rounded-none p-4 border-2 border-border shadow-neo-sm">
+                    <h5 className="font-black text-xs uppercase tracking-wider text-foreground mb-2">
                       Benefici
                     </h5>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-sm text-foreground font-medium leading-relaxed">
                       {pasto.benefici_nutrizionali}
                     </p>
                   </div>
@@ -280,14 +278,13 @@ const GiornoCard = ({ giorno }: { giorno: GiornoAlimentare }) => {
       : 0;
 
   return (
-    <Card className="overflow-hidden border-0 shadow-lg ring-1 ring-border/50 bg-card/50 backdrop-blur-sm">
+    <Card className="overflow-hidden border-2 border-border shadow-neo-lg bg-card">
       {/* Header del giorno */}
-      <div className="bg-gradient-to-r from-primary to-purple-600 text-white p-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
+      <div className="bg-foreground text-background p-6 relative overflow-hidden border-b-2 border-border">
         <div className="relative z-10 flex justify-between items-center">
           <div>
-            <h3 className="text-2xl font-bold tracking-tight text-white">{giorno.nome_giorno}</h3>
-            <p className="text-white/80 text-sm font-medium mt-1">
+            <h3 className="text-3xl font-black tracking-tighter text-background uppercase">{giorno.nome_giorno}</h3>
+            <p className="text-background/80 text-sm font-bold mt-1 uppercase">
               {new Date(giorno.data).toLocaleDateString("it-IT", {
                 day: "numeric",
                 month: "long",
@@ -295,31 +292,31 @@ const GiornoCard = ({ giorno }: { giorno: GiornoAlimentare }) => {
               })}
             </p>
           </div>
-          <div className="text-right bg-white/10 backdrop-blur-md rounded-lg px-4 py-2 border border-white/10">
-            <div className="text-2xl font-bold tracking-tighter text-white">
+          <div className="text-right bg-background text-foreground rounded-none px-4 py-2 border-2 border-border shadow-neo-sm">
+            <div className="text-2xl font-black tracking-tighter">
               {giorno.calorie_totali_stimate}
             </div>
-            <div className="text-white/70 text-[10px] font-bold uppercase tracking-widest">kcal</div>
+            <div className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">kcal</div>
           </div>
         </div>
 
         {/* Macro breakdown del giorno */}
-        <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center border-t border-white/10 pt-4">
+        <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center border-t-2 border-background/20 pt-4">
           <div className="group cursor-default">
-            <div className="text-lg font-semibold text-white group-hover:scale-110 transition-transform">{totaleProteine}g</div>
-            <div className="text-white/60 text-xs font-medium">
+            <div className="text-lg font-black text-background">{totaleProteine}g</div>
+            <div className="text-background/60 text-xs font-bold uppercase">
               Proteine ({percProteine}%)
             </div>
           </div>
           <div className="group cursor-default">
-            <div className="text-lg font-semibold text-white group-hover:scale-110 transition-transform">{totaleCarboidrati}g</div>
-            <div className="text-white/60 text-xs font-medium">
+            <div className="text-lg font-black text-background">{totaleCarboidrati}g</div>
+            <div className="text-background/60 text-xs font-bold uppercase">
               Carboidrati ({percCarboidrati}%)
             </div>
           </div>
           <div className="group cursor-default">
-            <div className="text-lg font-semibold text-white group-hover:scale-110 transition-transform">{totaleGrassi}g</div>
-            <div className="text-white/60 text-xs font-medium">
+            <div className="text-lg font-black text-background">{totaleGrassi}g</div>
+            <div className="text-background/60 text-xs font-bold uppercase">
               Grassi ({percGrassi}%)
             </div>
           </div>
@@ -327,7 +324,7 @@ const GiornoCard = ({ giorno }: { giorno: GiornoAlimentare }) => {
       </div>
 
       {/* Pasti del giorno */}
-      <CardContent className="p-6 space-y-4 bg-muted/5">
+      <CardContent className="p-6 space-y-4 bg-background">
         <PastoCard
           pasto={giorno.pasti.colazione}
           tipoPasto="colazione"
@@ -368,56 +365,55 @@ export default function PianoAlimentareView({ pianoData }: Props) {
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-16 animate-in fade-in duration-700">
       {/* Header del piano */}
-      <Card className="border-0 shadow-xl bg-gradient-to-br from-background via-background to-muted/30 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+      <Card className="border-2 border-border shadow-neo-lg bg-card overflow-hidden relative">
         <CardContent className="p-10 relative z-10">
           <div className="text-center mb-10">
-            <Badge variant="outline" className="mb-4 px-3 py-1 border-primary/20 text-primary bg-primary/5">
-              Piano Generato da AI
+            <Badge variant="outline" className="mb-4 px-3 py-1 border-2 border-border text-foreground bg-primary font-bold shadow-neo-sm">
+              PIANO GENERATO DA AI
             </Badge>
-            <h1 className="text-5xl font-extrabold tracking-tight text-foreground mb-3 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+            <h1 className="text-5xl font-black tracking-tighter text-foreground mb-3 uppercase">
               Piano Alimentare Settimanale
             </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Valido dal <span className="font-semibold text-foreground">{new Date(piano.data_inizio).toLocaleDateString("it-IT")}</span> •{" "}
-              Durata di <span className="font-semibold text-foreground">{piano.durata_giorni} giorni</span>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto font-medium border-2 border-border p-2 inline-block bg-background shadow-neo-sm">
+              DAL <span className="font-bold text-foreground">{new Date(piano.data_inizio).toLocaleDateString("it-IT")}</span> •{" "}
+              DURATA: <span className="font-bold text-foreground">{piano.durata_giorni} GIORNI</span>
             </p>
           </div>
 
           {/* Statistiche del piano */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <Card className="bg-blue-50/30 border-blue-100/50 dark:bg-blue-950/10 dark:border-blue-900/30 hover:bg-blue-50/50 transition-colors">
+            <Card className="bg-accent border-2 border-border shadow-neo hover:-translate-y-1 transition-transform">
               <CardContent className="p-5">
-                <div className="text-4xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                <div className="text-4xl font-black text-accent-foreground mb-1">
                   {mediaCalorie}
                 </div>
-                <div className="text-blue-700/60 dark:text-blue-300/60 text-[10px] font-bold uppercase tracking-widest">kcal/giorno</div>
+                <div className="text-accent-foreground font-bold uppercase tracking-widest text-xs border-t-2 border-accent-foreground/20 pt-2 mt-2">kcal/giorno</div>
               </CardContent>
             </Card>
-            <Card className="bg-green-50/30 border-green-100/50 dark:bg-green-950/10 dark:border-green-900/30 hover:bg-green-50/50 transition-colors">
+            <Card className="bg-primary border-2 border-border shadow-neo hover:-translate-y-1 transition-transform">
               <CardContent className="p-5">
-                <div className="text-4xl font-bold text-green-600 dark:text-green-400 mb-1">
+                <div className="text-4xl font-black text-primary-foreground mb-1">
                   {(totaleSettimanale / 1000).toFixed(1)}k
                 </div>
-                <div className="text-green-700/60 dark:text-green-300/60 text-[10px] font-bold uppercase tracking-widest">
+                <div className="text-primary-foreground font-bold uppercase tracking-widest text-xs border-t-2 border-primary-foreground/20 pt-2 mt-2">
                   kcal totali
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-purple-50/30 border-purple-100/50 dark:bg-purple-950/10 dark:border-purple-900/30 hover:bg-purple-50/50 transition-colors">
+            <Card className="bg-secondary border-2 border-border shadow-neo hover:-translate-y-1 transition-transform">
               <CardContent className="p-5">
-                <div className="text-4xl font-bold text-purple-600 dark:text-purple-400 mb-1">
+                <div className="text-4xl font-black text-secondary-foreground mb-1">
                   {piano.giorni.length}
                 </div>
-                <div className="text-purple-700/60 dark:text-purple-300/60 text-[10px] font-bold uppercase tracking-widest">giorni</div>
+                <div className="text-secondary-foreground font-bold uppercase tracking-widest text-xs border-t-2 border-secondary-foreground/20 pt-2 mt-2">giorni</div>
               </CardContent>
             </Card>
-            <Card className="bg-amber-50/30 border-amber-100/50 dark:bg-amber-950/10 dark:border-amber-900/30 hover:bg-amber-50/50 transition-colors">
+            <Card className="bg-muted border-2 border-border shadow-neo hover:-translate-y-1 transition-transform">
               <CardContent className="p-5">
-                <div className="text-4xl font-bold text-amber-600 dark:text-amber-400 mb-1">
+                <div className="text-4xl font-black text-muted-foreground mb-1">
                   {piano.giorni.length * 3}
                 </div>
-                <div className="text-amber-700/60 dark:text-amber-300/60 text-[10px] font-bold uppercase tracking-widest">
+                <div className="text-muted-foreground font-bold uppercase tracking-widest text-xs border-t-2 border-muted-foreground/20 pt-2 mt-2">
                   pasti totali
                 </div>
               </CardContent>
@@ -426,11 +422,11 @@ export default function PianoAlimentareView({ pianoData }: Props) {
 
           {/* Note di generazione */}
           {piano.note_generazione && (
-            <div className="mt-10 p-6 bg-card/50 rounded-xl border border-border/50 shadow-sm backdrop-blur-sm">
-              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2 text-lg">
-                <Sparkles className="w-5 h-5 text-primary" /> Note dell&apos;Intelligenza Artificiale
+            <div className="mt-10 p-6 bg-background rounded-none border-2 border-border shadow-neo">
+              <h3 className="font-black text-foreground mb-3 flex items-center gap-2 text-lg uppercase">
+                <Sparkles className="w-5 h-5 text-foreground" /> Note dell&apos;Intelligenza Artificiale
               </h3>
-              <p className="text-muted-foreground leading-relaxed text-base">{piano.note_generazione}</p>
+              <p className="text-muted-foreground leading-relaxed text-base font-medium">{piano.note_generazione}</p>
             </div>
           )}
         </CardContent>
@@ -444,9 +440,9 @@ export default function PianoAlimentareView({ pianoData }: Props) {
       </div>
 
       {/* Footer con informazioni aggiuntive */}
-      <div className="mt-16 text-center text-muted-foreground border-t border-border/40 pt-10 pb-4">
-        <p className="text-sm max-w-md mx-auto">
-          Piano generato automaticamente da cFood AI. Le informazioni nutrizionali sono stime basate su database standard.
+      <div className="mt-16 text-center text-muted-foreground border-t-2 border-border pt-10 pb-4">
+        <p className="text-sm max-w-md mx-auto font-bold uppercase">
+          Piano generato automaticamente da cFood AI.
         </p>
       </div>
     </div>

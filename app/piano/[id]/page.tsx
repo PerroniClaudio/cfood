@@ -8,7 +8,10 @@ import {
   Utensils,
   AlertCircle,
   RefreshCcw,
+  Flame,
+  Sparkles,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Interfacce per i tipi
 interface Piano {
@@ -217,14 +220,12 @@ export default function PianoPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200">
-        <div className="card bg-base-100 shadow-lg p-8">
-          <div className="flex flex-col items-center gap-4">
-            <span className="loading loading-spinner loading-lg text-primary"></span>
-            <h3 className="text-lg font-semibold text-primary">
-              Caricamento dettagli piano...
-            </h3>
-          </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <h3 className="text-xl font-black uppercase tracking-wider">
+            Caricamento dettagli piano...
+          </h3>
         </div>
       </div>
     );
@@ -232,25 +233,23 @@ export default function PianoPage() {
 
   if (errore) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200">
-        <div className="card bg-error text-error-content shadow-lg p-8">
-          <div className="flex items-center gap-3 mb-4">
-            <button
-              onClick={() => router.push("/")}
-              className="btn btn-neutral btn-sm">
-              <ArrowLeft className="w-4 h-4" />
-              <span>Torna alla Homepage</span>
-            </button>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-error-content rounded-full">
-              <AlertCircle className="w-6 h-6 text-error" />
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="bg-destructive text-destructive-foreground border-2 border-border shadow-neo p-8 max-w-md w-full">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-white border-2 border-black rounded-none shadow-neo-sm">
+              <AlertCircle className="w-6 h-6 text-black" />
             </div>
-            <div>
-              <h3 className="text-lg font-bold mb-2">Errore nel caricamento</h3>
-              <p>{errore}</p>
-            </div>
+            <h3 className="text-2xl font-black uppercase">Errore</h3>
           </div>
+          <p className="font-bold mb-6 text-lg">{errore}</p>
+          <Button
+            onClick={() => router.push("/")}
+            variant="outline"
+            className="w-full bg-white text-black border-2 border-black hover:bg-gray-100 font-black uppercase"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Torna alla Homepage
+          </Button>
         </div>
       </div>
     );
@@ -261,215 +260,215 @@ export default function PianoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200">
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="min-h-screen bg-background p-4 md:p-8 font-sans">
+      <div className="max-w-5xl mx-auto space-y-8">
         {/* Header con navigazione */}
         <div className="mb-6">
-          <button
+          <Button
             onClick={() => router.push("/")}
-            className="btn btn-neutral btn-sm flex items-center gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Torna alla Homepage</span>
-          </button>
+            variant="outline"
+            className="bg-white text-foreground border-2 border-border shadow-neo-sm hover:shadow-neo hover:-translate-y-0.5 transition-all font-bold uppercase"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Torna alla Homepage
+          </Button>
         </div>
 
         {/* Header del Piano */}
-        <div className="card bg-base-100 shadow border border-base-300">
-          <div className="card-body flex flex-row items-start justify-between">
+        <div className="bg-card border-2 border-border shadow-neo-lg p-8 relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row items-start justify-between gap-6">
             <div>
-              <h1 className="card-title text-3xl font-bold text-primary mb-2">
-                {dettagliPiano.piano?.nome || `Piano #${pianoId}`}
-              </h1>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-4xl md:text-5xl font-black text-foreground uppercase tracking-tighter">
+                  {dettagliPiano.piano?.nome || `Piano #${pianoId}`}
+                </h1>
+              </div>
               {dettagliPiano.piano?.descrizione && (
-                <p className="text-base-content mb-4">
+                <p className="text-lg font-medium text-muted-foreground max-w-2xl border-l-4 border-primary pl-4 py-1">
                   {dettagliPiano.piano.descrizione}
                 </p>
               )}
             </div>
-            <div className="text-right">
-              <div className="badge badge-lg badge-accent text-lg font-bold">
+            <div className="flex flex-col items-end">
+              <div className="bg-accent text-accent-foreground px-4 py-2 text-xl font-black border-2 border-border shadow-neo-sm rotate-2">
                 #{dettagliPiano.piano?.id}
               </div>
-              <div className="text-sm text-base-content">Piano ID</div>
+              <div className="text-xs font-bold uppercase tracking-widest mt-2 text-muted-foreground">Piano ID</div>
             </div>
           </div>
 
           {/* Statistiche rapide */}
           {dettagliPiano.giorni && dettagliPiano.giorni.length > 0 && (
-            <div className="card-actions p-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 w-full">
-                <div className="card bg-primary text-primary-content">
-                  <div className="card-body items-center">
-                    <div className="text-2xl font-bold">
-                      {Math.round(
-                        dettagliPiano.giorni.reduce(
-                          (acc: number, g: Giorno) => acc + (g.calorie || 0),
-                          0
-                        ) / dettagliPiano.giorni.length
-                      )}
-                    </div>
-                    <div className="text-sm font-medium">kcal/giorno</div>
-                  </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-8 border-t-2 border-border">
+              <div className="bg-primary text-primary-foreground p-4 border-2 border-border shadow-neo-sm hover:-translate-y-1 transition-transform">
+                <div className="text-3xl font-black">
+                  {Math.round(
+                    dettagliPiano.giorni.reduce(
+                      (acc: number, g: Giorno) => acc + (g.calorie || 0),
+                      0
+                    ) / dettagliPiano.giorni.length
+                  )}
                 </div>
-                <div className="card bg-secondary text-secondary-content">
-                  <div className="card-body items-center">
-                    <div className="text-2xl font-bold">
-                      {Math.round(
-                        dettagliPiano.giorni.reduce(
-                          (acc: number, g: Giorno) => acc + (g.proteine || 0),
-                          0
-                        ) / dettagliPiano.giorni.length
-                      )}
-                    </div>
-                    <div className="text-sm font-medium">g proteine/giorno</div>
-                  </div>
+                <div className="text-xs font-bold uppercase tracking-widest opacity-80">kcal/giorno</div>
+              </div>
+              <div className="bg-secondary text-secondary-foreground p-4 border-2 border-border shadow-neo-sm hover:-translate-y-1 transition-transform">
+                <div className="text-3xl font-black">
+                  {Math.round(
+                    dettagliPiano.giorni.reduce(
+                      (acc: number, g: Giorno) => acc + (g.proteine || 0),
+                      0
+                    ) / dettagliPiano.giorni.length
+                  )}
                 </div>
-                <div className="card bg-primary text-primary-content">
-                  <div className="card-body items-center">
-                    <div className="text-2xl font-bold">
-                      {Math.round(
-                        dettagliPiano.giorni.reduce(
-                          (acc: number, g: Giorno) =>
-                            acc + (g.carboidrati || 0),
-                          0
-                        ) / dettagliPiano.giorni.length
-                      )}
-                    </div>
-                    <div className="text-sm font-medium">
-                      g carboidrati/giorno
-                    </div>
-                  </div>
+                <div className="text-xs font-bold uppercase tracking-widest opacity-80">g proteine</div>
+              </div>
+              <div className="bg-muted text-muted-foreground p-4 border-2 border-border shadow-neo-sm hover:-translate-y-1 transition-transform">
+                <div className="text-3xl font-black">
+                  {Math.round(
+                    dettagliPiano.giorni.reduce(
+                      (acc: number, g: Giorno) =>
+                        acc + (g.carboidrati || 0),
+                      0
+                    ) / dettagliPiano.giorni.length
+                  )}
                 </div>
-                <div className="card bg-secondary text-secondary-content">
-                  <div className="card-body items-center">
-                    <div className="text-2xl font-bold">
-                      {Math.round(
-                        dettagliPiano.giorni.reduce(
-                          (acc: number, g: Giorno) => acc + (g.grassi || 0),
-                          0
-                        ) / dettagliPiano.giorni.length
-                      )}
-                    </div>
-                    <div className="text-sm font-medium">g grassi/giorno</div>
-                  </div>
+                <div className="text-xs font-bold uppercase tracking-widest opacity-80">
+                  g carboidrati
                 </div>
+              </div>
+              <div className="bg-white dark:bg-zinc-800 text-foreground p-4 border-2 border-border shadow-neo-sm hover:-translate-y-1 transition-transform">
+                <div className="text-3xl font-black">
+                  {Math.round(
+                    dettagliPiano.giorni.reduce(
+                      (acc: number, g: Giorno) => acc + (g.grassi || 0),
+                      0
+                    ) / dettagliPiano.giorni.length
+                  )}
+                </div>
+                <div className="text-xs font-bold uppercase tracking-widest opacity-80">g grassi</div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Dettagli per ogni giorno */}
+        {/* Feedback Reroll */}
         {rerollFeedback && (
           <div
-            className={`alert ${
+            className={`p-4 border-2 border-border shadow-neo font-bold flex justify-between items-center animate-in slide-in-from-top-2 ${
               rerollFeedback.type === "success"
-                ? "alert-success"
-                : "alert-error"
+                ? "bg-green-400 text-black"
+                : "bg-red-500 text-white"
             }`}>
-            <span>{rerollFeedback.message}</span>
-            <div>
-              <button
-                type="button"
-                className="btn btn-ghost btn-xs"
-                onClick={() => setRerollFeedback(null)}>
-                Chiudi
-              </button>
-            </div>
+            <span className="uppercase tracking-wide flex items-center gap-2">
+              {rerollFeedback.type === "success" ? <Sparkles className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+              {rerollFeedback.message}
+            </span>
+            <button
+              type="button"
+              className="hover:bg-black/10 p-1 rounded-sm transition-colors"
+              onClick={() => setRerollFeedback(null)}>
+              <span className="sr-only">Chiudi</span>
+              ✕
+            </button>
           </div>
         )}
 
-        {dettagliPiano.giorni &&
-          ordinaGiorni([...dettagliPiano.giorni]).map(
-            (giorno: Giorno, index: number) => {
-              // Trova i pasti per questo giorno
-              const pastiGiorno =
-                dettagliPiano.relazioni
-                  ?.filter(
-                    (r: Relazione) => r.giornoSettimana === giorno.giorno
-                  )
-                  ?.sort(
-                    (a: Relazione, b: Relazione) =>
-                      (a.ordineNelGiorno || 0) - (b.ordineNelGiorno || 0)
-                  )
-                  ?.map((r: Relazione) =>
-                    dettagliPiano.pasti?.find((p: Pasto) => p.id === r.pastoId)
-                  )
-                  ?.filter(Boolean) || [];
+        {/* Dettagli per ogni giorno */}
+        <div className="space-y-12">
+          {dettagliPiano.giorni &&
+            ordinaGiorni([...dettagliPiano.giorni]).map(
+              (giorno: Giorno, index: number) => {
+                // Trova i pasti per questo giorno
+                const pastiGiorno =
+                  dettagliPiano.relazioni
+                    ?.filter(
+                      (r: Relazione) => r.giornoSettimana === giorno.giorno
+                    )
+                    ?.sort(
+                      (a: Relazione, b: Relazione) =>
+                        (a.ordineNelGiorno || 0) - (b.ordineNelGiorno || 0)
+                    )
+                    ?.map((r: Relazione) =>
+                      dettagliPiano.pasti?.find((p: Pasto) => p.id === r.pastoId)
+                    )
+                    ?.filter(Boolean) || [];
 
-              return (
-                <div
-                  key={index}
-                  className="card bg-base-100 shadow border border-base-300 overflow-hidden">
-                  {/* Header del giorno */}
-                  <div className="card-title px-8 py-6 border-b border-base-300 flex items-center justify-between bg-base-300">
-                    <h3 className="text-2xl font-bold text-primary capitalize">
-                      {giorno.giorno}
-                    </h3>
-                    <div className="text-right">
-                      <div className="badge badge-lg badge-primary text-xl font-bold">
-                        {giorno.calorie || 0} kcal
-                      </div>
-                      <div className="text-sm text-base-content">
-                        P: {giorno.proteine || 0}g • C:{" "}
-                        {giorno.carboidrati || 0}g • G: {giorno.grassi || 0}g
+                return (
+                  <div
+                    key={index}
+                    className="bg-card border-2 border-border shadow-neo-lg overflow-hidden group">
+                    {/* Header del giorno */}
+                    <div className="bg-foreground text-background p-6 border-b-2 border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <h3 className="text-3xl font-black uppercase tracking-tighter">
+                        {giorno.giorno}
+                      </h3>
+                      <div className="flex items-center gap-4">
+                        <div className="bg-background text-foreground px-3 py-1 font-black border-2 border-border shadow-neo-sm text-lg">
+                          {giorno.calorie || 0} <span className="text-xs font-bold uppercase text-muted-foreground">kcal</span>
+                        </div>
+                        <div className="text-xs font-bold uppercase text-background/80 hidden md:block">
+                          P: {giorno.proteine || 0}g • C:{" "}
+                          {giorno.carboidrati || 0}g • G: {giorno.grassi || 0}g
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Pasti del giorno */}
-                  <div className="card-body">
-                    {pastiGiorno.length === 0 ? (
-                      <div className="text-center py-8 text-base-content">
-                        <Utensils className="w-12 h-12 mx-auto mb-4 text-base-300" />
-                        <p>Nessun pasto configurato per questo giorno</p>
-                      </div>
-                    ) : (
-                      <div className="grid gap-6 lg:grid-cols-3">
-                        {pastiGiorno.map(
-                          (pasto: Pasto | undefined, pastoIndex: number) => {
-                            if (!pasto) return null;
+                    {/* Pasti del giorno */}
+                    <div className="p-6 bg-background">
+                      {pastiGiorno.length === 0 ? (
+                        <div className="text-center py-12 border-2 border-dashed border-border bg-muted/20">
+                          <Utensils className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="font-bold text-muted-foreground uppercase">Nessun pasto configurato</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-6 lg:grid-cols-3">
+                          {pastiGiorno.map(
+                            (pasto: Pasto | undefined, pastoIndex: number) => {
+                              if (!pasto) return null;
 
-                            // DaisyUI colori badge/card
-                            const badgeColor =
-                              pasto.tipoPasto === "colazione"
-                                ? "badge-warning"
-                                : pasto.tipoPasto === "pranzo"
-                                ? "badge-info"
-                                : "badge-secondary";
+                              // Colori badge basati sul tipo pasto
+                              const badgeClass =
+                                pasto.tipoPasto === "colazione"
+                                  ? "bg-muted text-muted-foreground border-border"
+                                  : pasto.tipoPasto === "pranzo"
+                                  ? "bg-primary text-primary-foreground border-border"
+                                  : "bg-secondary text-secondary-foreground border-border";
 
-                            return (
-                              <div
-                                key={pastoIndex}
-                                className="card bg-base-200 border border-base-300 rounded-xl">
-                                <div className="card-body">
-                                  <div className="flex items-center gap-2 mb-4">
+                              return (
+                                <div
+                                  key={pastoIndex}
+                                  className="bg-card border-2 border-border p-5 flex flex-col h-full hover:shadow-neo hover:-translate-y-1 transition-all duration-200">
+                                  
+                                  <div className="flex items-center justify-between mb-4">
                                     <span
-                                      className={`badge ${badgeColor} badge-sm capitalize font-bold`}>
+                                      className={`px-2 py-0.5 text-xs font-black uppercase border-2 ${badgeClass} shadow-sm`}>
                                       {pasto.tipoPasto}
                                     </span>
-                                    <div className="ml-auto text-sm font-semibold text-primary">
-                                      {pasto.calorieStimate || 0} kcal
+                                    <div className="text-sm font-black text-foreground flex items-center gap-1">
+                                      <Flame className="w-3 h-3" />
+                                      {pasto.calorieStimate || 0}
                                     </div>
                                   </div>
 
-                                  <div className="text-sm text-base-content mb-4 leading-relaxed">
+                                  <div className="text-sm font-medium text-foreground mb-4 leading-relaxed flex-grow">
                                     {pasto.descrizioneDettagliata ||
                                       "Descrizione non disponibile"}
                                   </div>
 
-                                  <div className="flex gap-3 text-xs text-base-content pt-3 border-t border-base-300">
+                                  <div className="flex justify-between text-xs font-bold text-muted-foreground py-3 border-t-2 border-border/10 mt-auto">
                                     <span>P: {pasto.proteineG || 0}g</span>
                                     <span>C: {pasto.carboidratiG || 0}g</span>
                                     <span>G: {pasto.grassiG || 0}g</span>
                                   </div>
 
                                   {pasto.noteAggiuntive && (
-                                    <div className="mt-3 text-xs text-info italic">
-                                      💡 {pasto.noteAggiuntive}
+                                    <div className="mt-3 text-xs font-medium bg-muted p-2 border-2 border-border flex gap-2">
+                                      <span className="text-lg">💡</span>
+                                      <span>{pasto.noteAggiuntive}</span>
                                     </div>
                                   )}
 
-                                  <button
+                                  <Button
                                     type="button"
                                     onClick={(event) => {
                                       event.preventDefault();
@@ -477,28 +476,30 @@ export default function PianoPage() {
                                       handleRerollPasto(pasto.id);
                                     }}
                                     disabled={rerollingPastoId === pasto.id}
-                                    className="btn btn-outline btn-xs w-full mt-4">
+                                    variant="outline"
+                                    className="w-full mt-4 border-2 border-border hover:bg-primary hover:text-primary-foreground hover:border-primary font-bold uppercase tracking-wide transition-all"
+                                  >
                                     {rerollingPastoId === pasto.id ? (
-                                      <span className="loading loading-spinner loading-xs"></span>
+                                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto"></div>
                                     ) : (
                                       <span className="flex items-center justify-center gap-2">
                                         <RefreshCcw className="w-3 h-3" />
-                                        Rigenera con AI
+                                        Rigenera
                                       </span>
                                     )}
-                                  </button>
+                                  </Button>
                                 </div>
-                              </div>
-                            );
-                          }
-                        )}
-                      </div>
-                    )}
+                              );
+                            }
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            }
-          )}
+                );
+              }
+            )}
+        </div>
       </div>
     </div>
   );

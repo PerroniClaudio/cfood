@@ -43,7 +43,7 @@ export default function Modal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onCloseAction()}>
       <DialogContent className={`${getMaxWidth()} max-h-[90vh] flex flex-col p-0 gap-0`}>
-        <DialogHeader className="p-6 pb-4 border-b">
+        <DialogHeader className="p-6 pb-4 border-b-2 border-border">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <ScrollArea className="flex-1 p-6 max-h-[calc(90vh-80px)]">

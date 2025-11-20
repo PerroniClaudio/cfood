@@ -109,26 +109,26 @@ export default function GeneraPianoForm({
   };
 
   return (
-    <Card className="w-full border-0 shadow-none bg-transparent">
-      <CardHeader className="px-0 pt-0 pb-6">
+    <Card className="w-full border-2 border-border shadow-neo bg-card">
+      <CardHeader className="px-6 pt-6 pb-6 border-b-2 border-border">
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <div className="p-2 rounded-none border-2 border-border bg-primary text-primary-foreground shadow-neo-sm">
             <Sparkles className="w-5 h-5" />
           </div>
-          <CardTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">
+          <CardTitle className="text-2xl font-black text-foreground uppercase tracking-tight">
             Genera Piano Alimentare
           </CardTitle>
         </div>
-        <CardDescription className="text-base">
+        <CardDescription className="text-base font-medium text-muted-foreground">
           Crea un piano settimanale personalizzato basato su dati storici e
           preferenze.
         </CardDescription>
       </CardHeader>
-      <CardContent className="px-0 space-y-6">
+      <CardContent className="p-6 space-y-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Periodo Giorni */}
           <div className="space-y-2 group">
-            <Label htmlFor="periodo" className="text-sm font-medium flex items-center gap-2 text-foreground/80 group-focus-within:text-primary transition-colors">
+            <Label htmlFor="periodo" className="text-sm font-bold flex items-center gap-2 text-foreground">
               <Calendar className="w-4 h-4" />
               Periodo di analisi storica
             </Label>
@@ -140,18 +140,18 @@ export default function GeneraPianoForm({
                 max="365"
                 value={periodoGiorni}
                 onChange={(e) => setPeriodoGiorni(Number(e.target.value))}
-                className="pl-4 transition-all duration-300 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="pl-4 font-bold"
                 placeholder="Inserisci il numero di giorni (7-365)"
               />
             </div>
-            <p className="text-xs text-muted-foreground pl-1">
-              Il sistema analizzerà i piani creati negli ultimi <span className="font-medium text-foreground">{periodoGiorni}</span> giorni.
+            <p className="text-xs font-medium text-muted-foreground pl-1 border-l-2 border-muted-foreground/50 ml-1 pl-2">
+              Il sistema analizzerà i piani creati negli ultimi <span className="font-bold text-foreground">{periodoGiorni}</span> giorni.
             </p>
           </div>
 
           {/* Preferenze */}
           <div className="space-y-2 group">
-            <Label htmlFor="preferenze" className="text-sm font-medium flex items-center gap-2 text-foreground/80 group-focus-within:text-primary transition-colors">
+            <Label htmlFor="preferenze" className="text-sm font-bold flex items-center gap-2 text-foreground">
               <Utensils className="w-4 h-4" />
               Preferenze alimentari
               <span className="text-muted-foreground font-normal text-xs ml-auto">
@@ -163,17 +163,17 @@ export default function GeneraPianoForm({
               type="text"
               value={preferenze}
               onChange={(e) => setPreferenze(e.target.value)}
-              className="transition-all duration-300 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="font-bold"
               placeholder="es: vegetariano, mediterraneo, biologico"
             />
-            <p className="text-xs text-muted-foreground pl-1">
+            <p className="text-xs font-medium text-muted-foreground pl-1 border-l-2 border-muted-foreground/50 ml-1 pl-2">
               Separa le preferenze con virgole.
             </p>
           </div>
 
           {/* Esclusioni */}
           <div className="space-y-2 group">
-            <Label htmlFor="esclusioni" className="text-sm font-medium flex items-center gap-2 text-foreground/80 group-focus-within:text-destructive transition-colors">
+            <Label htmlFor="esclusioni" className="text-sm font-bold flex items-center gap-2 text-foreground">
               <Ban className="w-4 h-4" />
               Esclusioni alimentari
               <span className="text-muted-foreground font-normal text-xs ml-auto">
@@ -185,27 +185,27 @@ export default function GeneraPianoForm({
               type="text"
               value={esclusioni}
               onChange={(e) => setEsclusioni(e.target.value)}
-              className="transition-all duration-300 focus:ring-2 focus:ring-destructive/20 focus:border-destructive"
+              className="font-bold"
               placeholder="es: glutine, lattosio, uova"
             />
-            <p className="text-xs text-muted-foreground pl-1">
+            <p className="text-xs font-medium text-muted-foreground pl-1 border-l-2 border-muted-foreground/50 ml-1 pl-2">
               Indica allergie o alimenti da evitare.
             </p>
           </div>
 
           {/* Errore */}
           {errore && (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center gap-3 text-destructive animate-in slide-in-from-top-2">
-              <AlertCircle className="w-4 h-4" />
-              <div className="text-sm font-medium">{errore}</div>
+            <div className="bg-destructive text-destructive-foreground border-2 border-border p-4 flex items-center gap-3 shadow-neo-sm font-bold animate-in slide-in-from-top-2">
+              <AlertCircle className="w-5 h-5" />
+              <div className="text-sm">{errore}</div>
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-4 pt-4">
             <Button
               type="button"
               variant="outline"
-              className="flex-1 hover:bg-muted/50 transition-colors"
+              className="flex-1 border-2 border-border shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all"
               onClick={onCloseAction}
             >
               Annulla
@@ -213,8 +213,7 @@ export default function GeneraPianoForm({
             <Button
               type="submit"
               className={cn(
-                "flex-1 text-white border-0 transition-all duration-300 shadow-lg hover:shadow-primary/25",
-                "bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90",
+                "flex-1 bg-primary text-primary-foreground border-2 border-border shadow-neo hover:bg-primary/90 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all",
                 loading && "opacity-80"
               )}
               disabled={loading}
@@ -222,12 +221,12 @@ export default function GeneraPianoForm({
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generazione in corso...
+                  GENERAZIONE...
                 </>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Genera Piano AI
+                  GENERA PIANO AI
                 </>
               )}
             </Button>

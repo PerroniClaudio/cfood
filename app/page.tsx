@@ -77,118 +77,114 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="min-h-screen bg-background p-8 font-sans">
+      <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
-        <div className="mb-8 flex justify-center">
-          <div className="card w-full bg-base-300 shadow">
-            <div className="card-body items-center text-center">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="p-3 bg-gradient-to-br from-primary to-secondary rounded-2xl">
-                  <Utensils className="w-8 h-8 text-white" />
-                </div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  CFood
-                </h1>
+        <div className="flex justify-center mb-12">
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="p-4 bg-primary border-2 border-border shadow-neo rounded-none rotate-3 hover:rotate-6 transition-transform">
+                <Utensils className="w-10 h-10 text-primary-foreground" />
               </div>
-              <p className="text-lg max-w-2xl mx-auto">
-                Generatore di piani alimentari intelligente basato su AI e
-                analisi storica
-              </p>
-              <div className="flex items-center justify-center gap-2 mt-3 text-sm text-gray-500">
-                <Sparkles className="w-4 h-4" />
-                <span>Powered by AWS Bedrock</span>
-              </div>
+              <h1 className="text-6xl font-black tracking-tighter uppercase">
+                CFood
+              </h1>
+            </div>
+            <p className="text-xl font-bold max-w-2xl mx-auto border-2 border-border p-4 bg-white dark:bg-zinc-900 shadow-neo-sm rotate-1">
+              Generatore di piani alimentari intelligente basato su AI e
+              analisi storica
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-4 text-sm font-bold uppercase tracking-widest text-muted-foreground">
+              <Sparkles className="w-4 h-4" />
+              <span>Powered by AWS Bedrock</span>
             </div>
           </div>
         </div>
 
         {/* Header con bottone per generare nuovo piano */}
-        <div className="card bg-base-300 shadow overflow-hidden">
-          <div className="card-body px-8 py-6">
-            <h2 className="card-title text-2xl font-bold text-primary mb-2">
-              I tuoi piani alimentari
-            </h2>
-            <p className="">
-              Visualizza e gestisci i tuoi piani alimentari generati
-              dall&apos;AI
-            </p>
-            <div className="card-actions justify-end">
-              <button
-                onClick={() => setIsGeneraModalOpen(true)}
-                className="btn btn-primary flex items-center gap-2 font-semibold">
-                <Plus className="w-5 h-5" />
-                <span>Genera Nuovo Piano</span>
-              </button>
+        <div className="bg-card border-2 border-border shadow-neo p-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+              <h2 className="text-3xl font-black text-foreground mb-2 uppercase">
+                I tuoi piani alimentari
+              </h2>
+              <p className="text-lg font-medium text-muted-foreground">
+                Visualizza e gestisci i tuoi piani alimentari generati
+                dall&apos;AI
+              </p>
             </div>
+            <button
+              onClick={() => setIsGeneraModalOpen(true)}
+              className="bg-primary text-primary-foreground px-6 py-3 font-black uppercase tracking-wider border-2 border-border shadow-neo hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center gap-2"
+            >
+              <Plus className="w-6 h-6" />
+              <span>Genera Nuovo Piano</span>
+            </button>
           </div>
         </div>
 
         {/* Risultato piano appena generato */}
         {risultato && (
-          <div className="card bg-primary text-primary-content shadow-lg rounded-2xl p-6">
-            <div className="card-body">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-primary-content rounded-full">
-                  <Sparkles className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-bold">
-                  Piano generato con successo!
-                </h3>
+          <div className="bg-primary text-primary-foreground border-2 border-border shadow-neo p-6 animate-in slide-in-from-top-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-white border-2 border-black rounded-none shadow-neo-sm">
+                <Sparkles className="w-6 h-6 text-black" />
               </div>
-              <p>
-                Il tuo piano alimentare personalizzato è pronto. È stato
-                aggiunto alla lista dei piani disponibili.
-              </p>
-              <div className="mt-4 flex items-center gap-3">
-                <button
-                  onClick={() => setShowRawData(!showRawData)}
-                  className="btn btn-secondary">
-                  {showRawData ? "Nascondi" : "Mostra"} dati tecnici
-                </button>
-              </div>
-              {showRawData && (
-                <div className="mt-4 bg-base-100 border border-primary-content rounded-lg p-4">
-                  <pre className="text-xs text-primary-content overflow-auto max-h-96">
-                    <code>{JSON.stringify(risultato, null, 2)}</code>
-                  </pre>
-                </div>
-              )}
+              <h3 className="text-2xl font-black uppercase">
+                Piano generato con successo!
+              </h3>
             </div>
+            <p className="font-bold text-lg mb-4">
+              Il tuo piano alimentare personalizzato è pronto. È stato
+              aggiunto alla lista dei piani disponibili.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowRawData(!showRawData)}
+                className="bg-white text-black px-4 py-2 font-bold border-2 border-black shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
+              >
+                {showRawData ? "Nascondi" : "Mostra"} dati tecnici
+              </button>
+            </div>
+            {showRawData && (
+              <div className="mt-4 bg-black text-white border-2 border-white p-4 overflow-hidden">
+                <pre className="text-xs overflow-auto max-h-96 font-mono">
+                  <code>{JSON.stringify(risultato, null, 2)}</code>
+                </pre>
+              </div>
+            )}
           </div>
         )}
 
         {/* Info Card */}
-        <div className="card bg-info shadow-lg rounded-2xl p-6">
-          <div className="card-body flex items-start gap-3">
-            <div className="flex-1">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="p-3 bg-base-300 rounded-2xl">
-                  <Info className="w-7 h-7 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-info-content">
-                  Come funziona CFood
-                </h2>
-              </div>
+        <div className="bg-secondary text-secondary-foreground border-2 border-border shadow-neo p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-white border-2 border-border shadow-neo-sm shrink-0">
+              <Info className="w-8 h-8 text-foreground" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black mb-4 uppercase">
+                Come funziona CFood
+              </h2>
 
-              <div className="space-y-2 text-sm text-secondary-content">
+              <div className="space-y-3 text-base font-medium">
                 <p>
-                  <span className="font-medium">1. Analisi Storica:</span> Il
+                  <span className="font-black bg-white px-1 border-2 border-black mr-2">1. Analisi Storica:</span> Il
                   sistema analizza i piani alimentari precedenti per comprendere
                   pattern e preferenze
                 </p>
                 <p>
-                  <span className="font-medium">2. Retrieval Ibrido:</span>{" "}
+                  <span className="font-black bg-white px-1 border-2 border-black mr-2">2. Retrieval Ibrido:</span>{" "}
                   Combina frequenza storica (70%) e similarità semantica (30%)
                   per selezionare i migliori pasti
                 </p>
                 <p>
-                  <span className="font-medium">3. Generazione AI:</span>{" "}
+                  <span className="font-black bg-white px-1 border-2 border-black mr-2">3. Generazione AI:</span>{" "}
                   Utilizza AWS Bedrock per creare un piano personalizzato basato
                   sui dati raccolti
                 </p>
                 <p>
-                  <span className="font-medium">4. Calcolo Nutrizionale:</span>{" "}
+                  <span className="font-black bg-white px-1 border-2 border-black mr-2">4. Calcolo Nutrizionale:</span>{" "}
                   Analizza automaticamente i valori nutrizionali di ogni pasto
                   del piano
                 </p>
@@ -198,42 +194,43 @@ export default function Home() {
         </div>
 
         {/* Visualizzatore Piani Recenti */}
-        <div className="card bg-base-300 rounded-2xl shadow p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 inline-block mr-2" />
-              <h3 className="text-xl font-bold ">Piani Recenti</h3>
+        <div className="bg-card border-2 border-border shadow-neo p-8">
+          <div className="flex items-center justify-between mb-8 border-b-2 border-border pb-4">
+            <div className="flex items-center gap-3">
+              <Clock className="w-6 h-6" />
+              <h3 className="text-2xl font-black uppercase">Piani Recenti</h3>
             </div>
             <button
               onClick={caricaPianiRecenti}
               disabled={loadingPiani}
-              className="btn btn-primary">
+              className="bg-white text-foreground px-4 py-2 font-bold border-2 border-border shadow-neo-sm hover:shadow-neo hover:-translate-y-0.5 transition-all disabled:opacity-50"
+            >
               {loadingPiani ? (
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm">Caricamento...</span>
+                  <div className="w-4 h-4 border-2 border-foreground border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm">CARICAMENTO...</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <RefreshCcw className="w-4 h-4" />
-                  <span className="text-sm">Aggiorna</span>
+                  <span className="text-sm uppercase">Aggiorna</span>
                 </div>
               )}
             </button>
           </div>
 
           {loadingPiani ? (
-            <div className="text-center py-8">
-              <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Caricamento piani recenti...</p>
+            <div className="text-center py-12">
+              <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+              <p className="text-xl font-bold uppercase">Caricamento piani recenti...</p>
             </div>
           ) : pianiRecenti.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-semibold text-gray-600 mb-2">
+            <div className="text-center py-12 border-2 border-dashed border-border bg-muted/20">
+              <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h4 className="text-xl font-black uppercase mb-2">
                 Nessun piano trovato
               </h4>
-              <p className="text-gray-500">
+              <p className="text-muted-foreground font-medium">
                 Genera il tuo primo piano alimentare utilizzando il bottone
                 sopra.
               </p>
@@ -243,51 +240,55 @@ export default function Home() {
               {pianiRecenti.map((piano) => (
                 <div
                   key={piano.id}
-                  className="card bg-base-100 rounded-xl hover:shadow-lg transition-all duration-200 cursor-pointer"
-                  onClick={() => navigaToPiano(piano.id)}>
-                  <div className="card-body">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="text-lg font-semibold ">{piano.nome}</h4>
-                      <div className="badge badge-success">#{piano.id}</div>
-                    </div>
-                    {piano.descrizione && (
-                      <p className="leading-relaxed">{piano.descrizione}</p>
-                    )}
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>
-                          Creato:{" "}
-                          {piano.dataCreazione
-                            ? new Date(piano.dataCreazione).toLocaleDateString(
-                                "it-IT"
-                              )
-                            : "N/A"}
-                        </span>
+                  className="bg-white dark:bg-zinc-900 border-2 border-border p-6 hover:shadow-neo hover:-translate-y-1 transition-all duration-200 cursor-pointer group"
+                  onClick={() => navigaToPiano(piano.id)}
+                >
+                  <div className="flex flex-col md:flex-row justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <h4 className="text-xl font-black uppercase group-hover:text-primary transition-colors">{piano.nome}</h4>
+                        <div className="bg-accent text-accent-foreground px-2 py-0.5 text-xs font-bold border-2 border-border shadow-neo-sm">#{piano.id}</div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        <span>
-                          Modificato:{" "}
-                          {piano.dataUltimaModifica
-                            ? new Date(
-                                piano.dataUltimaModifica
-                              ).toLocaleDateString("it-IT")
-                            : "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span>👨‍🍳 {piano.autore}</span>
+                      {piano.descrizione && (
+                        <p className="font-medium text-muted-foreground">{piano.descrizione}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-4 text-sm font-bold text-muted-foreground pt-2">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>
+                            CREATO:{" "}
+                            {piano.dataCreazione
+                              ? new Date(piano.dataCreazione).toLocaleDateString(
+                                  "it-IT"
+                                )
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          <span>
+                            MODIFICATO:{" "}
+                            {piano.dataUltimaModifica
+                              ? new Date(
+                                  piano.dataUltimaModifica
+                                ).toLocaleDateString("it-IT")
+                              : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-muted px-2 py-0.5 border-2 border-border">
+                          <span>👨‍🍳 {piano.autore}</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="card-actions justify-end">
+                    <div className="flex items-center">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           navigaToPiano(piano.id);
                         }}
-                        className="btn btn-primary text-sm font-medium">
+                        className="w-full md:w-auto bg-background text-foreground px-4 py-2 font-bold border-2 border-border shadow-neo-sm group-hover:shadow-neo group-hover:-translate-y-0.5 transition-all uppercase"
+                      >
                         Visualizza Piano
                       </button>
                     </div>
