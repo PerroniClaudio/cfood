@@ -322,7 +322,7 @@ export default function PianoPage() {
         )}
 
         {/* THE MENU CARD */}
-        <div className="bg-card text-card-foreground border-4 border-border shadow-neo-xl p-4 md:p-16 relative rotate-1 transition-transform hover:rotate-0 duration-500 mb-20">
+        <div className="bg-card text-card-foreground border-4 border-border shadow-neo-xl p-4 md:p-16 relative lg:rotate-1 transition-transform hover:rotate-0 duration-500 mb-20">
           {/* Decorative Elements */}
           <div className="absolute top-[-12px] left-1/2 -translate-x-1/2 w-6 h-6 bg-foreground rounded-full shadow-sm z-20 border-2 border-background"></div>
 
